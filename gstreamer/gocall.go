@@ -31,8 +31,9 @@ func on_offer_created(promise *C.GstPromise, webrtc *C.GstElement) {
 	//var desc *C.gchar
 
 	reply = C.gst_promise_get_reply(promise)
-	test := gst_structure_get(reply, "offer", C.GST_TYPE_WEBRTC_SESSION_DESCRIPTION, offer, nil)
-	offer = test
+	gst_structure_get(reply, "offer", C.GST_TYPE_WEBRTC_SESSION_DESCRIPTION, offer, nil)
+	fmt.Println(offer)
+	//offer = test
 
 	/* We can edit this offer before setting and sending */
 

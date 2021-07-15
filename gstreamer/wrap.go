@@ -34,18 +34,18 @@ GstBus *gst_pipeline_get_bus_wrap(void *pipeline) {
 	return gst_pipeline_get_bus(GST_PIPELINE(pipeline));
 }
 
-GstWebRTCSessionDescription* gst_structure_get_wrap(GstStructure  *structure,char * first_fieldname, ulong one, GstWebRTCSessionDescription** two,void* three) {
-	GstWebRTCSessionDescription *offer;
-	g_print("NULL");
-	if(two == NULL) {
-		g_print("1NULL");
-	}
-	gst_structure_get(structure, first_fieldname, one, &offer, three, NULL);
-	if(two == NULL) {
-		g_print("2NULL");
-	}
-	*two = offer;
-	return two;
+gboolean gst_structure_get_wrap(GstStructure  *structure,char * first_fieldname, ulong one, GstWebRTCSessionDescription** two,void* three) {
+	//GstWebRTCSessionDescription *offer;
+	//g_print("NULL");
+	//if(two == NULL) {
+	//	g_print("1NULL");
+	//}
+	return gst_structure_get(structure, first_fieldname, one, &*two, three, NULL);
+	//if(two == NULL) {
+	//	g_print("2NULL");
+	//}
+	//*two = offer;
+	//return two;
 }
 
 void test_int(char **r) {
@@ -87,13 +87,15 @@ func gst_pipeline_get_bus(r unsafe.Pointer) *C.GstBus {
 	return C.gst_pipeline_get_bus_wrap(r)
 }
 
-func gst_structure_get(a1 *C.GstStructure, a2 string, a3 C.ulong, a4 *C.GstWebRTCSessionDescription, a5 unsafe.Pointer) *C.GstWebRTCSessionDescription {
-	var offer *C.GstWebRTCSessionDescription
-	r := C.gst_structure_get_wrap(a1, C.CString(a2), a3, &offer, a5)
-	fmt.Println(r, a4, offer)
+func gst_structure_get(a1 *C.GstStructure, a2 string, a3 C.ulong, a4 *C.GstWebRTCSessionDescription, a5 unsafe.Pointer) C.gboolean {
+	//var offer *C.GstWebRTCSessionDescription
+	C.gst_structure_get_wrap(a1, C.CString(a2), a3, &a4, a5)
 
-	var test *C.char
-	C.test_int(&test)
-	fmt.Println(C.GoString(test))
-	return offer
+	fmt.Println(a4)
+	return 1
+	//
+	//var test *C.char
+	//C.test_int(&test)
+	//fmt.Println(C.GoString(test))
+	//return offer
 }
