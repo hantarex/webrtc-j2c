@@ -1,8 +1,10 @@
-package main
+package gstreamer
 
 /*
+#define GST_USE_UNSTABLE_API
 #include <gst/gst.h>
 #include <json-glib/json-glib.h>
+#include <gst/webrtc/webrtc.h>
 
 void g_assert_nonnull_wrap(gpointer expr) {
 	g_assert_nonnull(expr);
@@ -20,6 +22,10 @@ void g_signal_emit_by_name_wrap(GstElement *instance,char* signal,void* one,void
 	g_signal_emit_by_name(instance, signal, one, two, three);
 }
 
+void g_signal_emit_by_name_offer_wrap(GstElement *instance,char* signal,GstWebRTCSessionDescription* one) {
+	g_signal_emit_by_name(instance, signal, one, NULL);
+}
+
 void g_print_wrap(gchar *format) {
 	g_print(format);
 }
@@ -27,9 +33,28 @@ void g_print_wrap(gchar *format) {
 GstBus *gst_pipeline_get_bus_wrap(void *pipeline) {
 	return gst_pipeline_get_bus(GST_PIPELINE(pipeline));
 }
+
+GstWebRTCSessionDescription* gst_structure_get_wrap(GstStructure  *structure,char * first_fieldname, ulong one, void* two,void* three) {
+	g_print("NULL");
+	if(two == NULL) {
+		g_print("1NULL");
+	}
+	gboolean result;
+	result = gst_structure_get(structure, first_fieldname, one, &two, three, NULL);
+	if(two == NULL) {
+		g_print("2NULL");
+	}
+	return two;
+}
+
+void test_int(char **r) {
+	char *var = "aaaa";
+	*r = var;
+}
 */
 import "C"
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -49,10 +74,26 @@ func g_signal_emit_by_name(instance *C.GstElement, signal string, one unsafe.Poi
 	C.g_signal_emit_by_name_wrap(instance, C.CString(signal), one, two, three)
 }
 
+func g_signal_emit_by_name_offer(instance *C.GstElement, signal string, one *C.GstWebRTCSessionDescription) {
+	C.g_signal_emit_by_name_offer_wrap(instance, C.CString(signal), one)
+}
+
 func g_print(str string) {
 	C.g_print_wrap(C.CString(str))
 }
 
 func gst_pipeline_get_bus(r unsafe.Pointer) *C.GstBus {
 	return C.gst_pipeline_get_bus_wrap(r)
+}
+
+func gst_structure_get(a1 *C.GstStructure, a2 string, a3 C.ulong, a4 *C.GstWebRTCSessionDescription, a5 unsafe.Pointer) *C.GstWebRTCSessionDescription {
+	var offer *C.GstWebRTCSessionDescription
+	o := &offer
+	r := C.gst_structure_get_wrap(a1, C.CString(a2), a3, unsafe.Pointer(o), a5)
+	fmt.Println(r, a4, offer, *o)
+
+	var test *C.char
+	C.test_int(&test)
+	fmt.Println(C.GoString(test))
+	return *o
 }

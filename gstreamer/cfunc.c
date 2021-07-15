@@ -112,3 +112,18 @@ void on_negotiation_needed_wrap (GstElement * webrtc, gpointer user_data)
 //	g_signal_emit_by_name (webrtc, "create-offer", NULL,
 //	  promise);
 }
+
+extern void on_offer_created (GstPromise * webrtc, gpointer user_data);
+void on_offer_created_wrap (GstPromise *promise, GstElement *webrtc)
+{
+    on_offer_created(promise, webrtc);
+//	g_print ("on_offer_created:\n");
+//	GstWebRTCSessionDescription *offer = NULL;
+//	const GstStructure *reply;
+//	gchar *desc;
+//	reply = gst_promise_get_reply (promise);
+//	gst_structure_get (reply, "offer", GST_TYPE_WEBRTC_SESSION_DESCRIPTION, &offer, NULL);
+//	g_signal_emit_by_name (webrtc, "set-local-description", offer, NULL);
+//	gst_webrtc_session_description_free (offer);
+}
+

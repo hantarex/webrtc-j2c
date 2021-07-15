@@ -9,3 +9,4 @@
 
 gboolean bus_call (GstBus *bus, GstMessage *msg, UserData *data);
 void on_negotiation_needed_wrap (GstElement * webrtc, gpointer user_data);
+void on_offer_created_wrap (GstPromise *promise, GstElement *webrtc);
