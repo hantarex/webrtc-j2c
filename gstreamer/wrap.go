@@ -55,7 +55,6 @@ void test_int(char **r) {
 */
 import "C"
 import (
-	"fmt"
 	"unsafe"
 )
 
@@ -88,14 +87,8 @@ func gst_pipeline_get_bus(r unsafe.Pointer) *C.GstBus {
 }
 
 func gst_structure_get(a1 *C.GstStructure, a2 string, a3 C.ulong, a4 *C.GstWebRTCSessionDescription, a5 unsafe.Pointer) C.gboolean {
-	//var offer *C.GstWebRTCSessionDescription
-	C.gst_structure_get_wrap(a1, C.CString(a2), a3, &a4, a5)
-
-	fmt.Println(a4)
-	return 1
-	//
-	//var test *C.char
-	//C.test_int(&test)
-	//fmt.Println(C.GoString(test))
-	//return offer
+	offer := new(C.GstWebRTCSessionDescription)
+	r := C.gst_structure_get_wrap(a1, C.CString(a2), a3, &offer, a5)
+	*a4 = *offer
+	return r
 }
