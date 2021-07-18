@@ -92,3 +92,20 @@ func gst_structure_get(a1 *C.GstStructure, a2 string, a3 C.ulong, a4 *C.GstWebRT
 	*a4 = *offer
 	return r
 }
+
+func get_string_from_json_object(object *C.JsonObject) *C.gchar {
+	var root *C.JsonNode
+	var generator *C.JsonGenerator
+	var text *C.gchar
+
+	/* Make it the root node */
+	root = C.json_node_init_object(C.json_node_alloc(), object)
+	generator = C.json_generator_new()
+	C.json_generator_set_root(generator, root)
+	text = C.json_generator_to_data(generator, nil)
+
+	/* Release everything */
+	C.g_object_unref(C.gpointer(generator))
+	C.json_node_free(root)
+	return text
+}

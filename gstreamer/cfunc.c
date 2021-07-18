@@ -103,14 +103,6 @@ extern void on_negotiation_needed (GstElement * webrtc, gpointer user_data);
 void on_negotiation_needed_wrap (GstElement * webrtc, gpointer user_data)
 {
     on_negotiation_needed(webrtc, user_data);
-//	g_print ("on_negotiation_needed:\n");
-//
-//	GstPromise *promise;
-//
-//	promise = gst_promise_new_with_change_func (on_offer_created,
-//	  user_data, NULL);
-//	g_signal_emit_by_name (webrtc, "create-offer", NULL,
-//	  promise);
 }
 
 extern void on_offer_created (GstPromise * webrtc, gpointer user_data);
@@ -125,5 +117,11 @@ void on_offer_created_wrap (GstPromise *promise, GstElement *webrtc)
 //	gst_structure_get (reply, "offer", GST_TYPE_WEBRTC_SESSION_DESCRIPTION, &offer, NULL);
 //	g_signal_emit_by_name (webrtc, "set-local-description", offer, NULL);
 //	gst_webrtc_session_description_free (offer);
+}
+
+extern void send_ice_candidate_message (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, gpointer user_data G_GNUC_UNUSED);
+void send_ice_candidate_message_wrap (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, gpointer user_data G_GNUC_UNUSED)
+{
+    send_ice_candidate_message(webrtc, mlineindex, candidate, user_data);
 }
 

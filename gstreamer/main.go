@@ -37,7 +37,7 @@ func InitGst() {
 	g_assert_nonnull(C.gpointer(Gst.webrtc))
 
 	g_signal_connect(unsafe.Pointer(Gst.webrtc), "on-negotiation-needed", C.on_negotiation_needed_wrap, unsafe.Pointer(Gst.webrtc))
-	//g_signal_connect(unsafe.Pointer(webrtc), "on-ice-candidate", send_ice_candidate_message,  unsafe.Pointer(w))
+	g_signal_connect(unsafe.Pointer(Gst.webrtc), "on-ice-candidate", C.send_ice_candidate_message_wrap, nil)
 	//g_signal_connect(unsafe.Pointer(webrtc), "pad-added", on_incoming_stream, nil)
 
 	C.gst_element_set_state(Gst.pipeline, C.GST_STATE_READY)
