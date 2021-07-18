@@ -26,6 +26,18 @@ void g_signal_emit_by_name_offer_wrap(GstElement *instance,char* signal,GstWebRT
 	g_signal_emit_by_name(instance, signal, one, NULL);
 }
 
+void g_signal_emit_by_name_offer_remote_wrap(GstElement *instance,char* signal,GstWebRTCSessionDescription* one, GstPromise* two) {
+	g_signal_emit_by_name(instance, signal, one, two, NULL);
+}
+
+GstSDPResult gst_sdp_message_parse_buffer_wrap(gchar *data, ulong size, GstSDPMessage *msg) {
+	return gst_sdp_message_parse_buffer((guint8 *) data, size, msg);
+}
+
+void g_signal_emit_by_name_recv_wrap(GstElement *instance,char* signal,int one,void* two,void* three) {
+	g_signal_emit_by_name(instance, signal, one, two, three);
+}
+
 void g_print_wrap(gchar *format) {
 	g_print(format);
 }
@@ -76,6 +88,14 @@ func g_signal_emit_by_name(instance *C.GstElement, signal string, one unsafe.Poi
 
 func g_signal_emit_by_name_offer(instance *C.GstElement, signal string, one *C.GstWebRTCSessionDescription) {
 	C.g_signal_emit_by_name_offer_wrap(instance, C.CString(signal), one)
+}
+
+func g_signal_emit_by_name_offer_remote(instance *C.GstElement, signal string, one *C.GstWebRTCSessionDescription, two *C.GstPromise) {
+	C.g_signal_emit_by_name_offer_remote_wrap(instance, C.CString(signal), one, two)
+}
+
+func g_signal_emit_by_name_recv(instance *C.GstElement, signal string, one int, two unsafe.Pointer, three unsafe.Pointer) {
+	C.g_signal_emit_by_name_recv_wrap(instance, C.CString(signal), C.int(one), two, three)
 }
 
 func g_print(str string) {

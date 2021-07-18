@@ -99,16 +99,27 @@ gboolean bus_call (GstBus *bus, GstMessage *msg, UserData *data)
 	return TRUE;
 }
 
-extern void on_negotiation_needed (GstElement * webrtc, gpointer user_data);
-void on_negotiation_needed_wrap (GstElement * webrtc, gpointer user_data)
+extern void on_answer_created (GstPromise * promise, void * user_data);
+void on_answer_created_wrap (GstPromise * promise, gpointer user_data) {
+    on_answer_created(promise, user_data);
+}
+
+extern void on_negotiation_needed (GstElement * webrtc, void* user_data);
+void on_negotiation_needed_wrap (GstElement * webrtc, void* user_data)
 {
     on_negotiation_needed(webrtc, user_data);
 }
 
-extern void on_offer_created (GstPromise * webrtc, gpointer user_data);
-void on_offer_created_wrap (GstPromise *promise, GstElement *webrtc)
+extern void on_offer_set (GstPromise * webrtc, void* user_data);
+void on_offer_set_wrap(GstPromise * webrtc, void* user_data)
 {
-    on_offer_created(promise, webrtc);
+    on_offer_set(webrtc, user_data);
+}
+
+extern void on_offer_created (GstPromise * webrtc, void * user_data);
+void on_offer_created_wrap (GstPromise *promise, void *user_data)
+{
+    on_offer_created(promise, user_data);
 //	g_print ("on_offer_created:\n");
 //	GstWebRTCSessionDescription *offer = NULL;
 //	const GstStructure *reply;
@@ -119,8 +130,8 @@ void on_offer_created_wrap (GstPromise *promise, GstElement *webrtc)
 //	gst_webrtc_session_description_free (offer);
 }
 
-extern void send_ice_candidate_message (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, gpointer user_data G_GNUC_UNUSED);
-void send_ice_candidate_message_wrap (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, gpointer user_data G_GNUC_UNUSED)
+extern void send_ice_candidate_message (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, void *user_data);
+void send_ice_candidate_message_wrap (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, void *user_data)
 {
     send_ice_candidate_message(webrtc, mlineindex, candidate, user_data);
 }

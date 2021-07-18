@@ -9,7 +9,11 @@ import (
 )
 
 var addr = flag.String("addr", ":8082", "http service address")
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+} // use default options
 
 func ws(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -18,27 +22,16 @@ func ws(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
-	gstreamer.InitGst()
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, []byte("asdad"))
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-	}
+	gst := new(gstreamer.GStreamer)
+	gst.InitGst(c)
 }
 
 func main() {
-	//flag.Parse()
-	//log.SetFlags(0)
-	//http.HandleFunc("/ws", ws)
-	//http.ListenAndServe(*addr, nil)
+	flag.Parse()
+	log.SetFlags(0)
+	http.HandleFunc("/ws", ws)
+	http.ListenAndServe(*addr, nil)
 
-	gstreamer.InitGst()
+	//gst := new(gstreamer.GStreamer)
+	//gst.InitGst(new(websocket.Conn))
 }
