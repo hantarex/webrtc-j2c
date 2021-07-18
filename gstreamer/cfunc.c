@@ -6,14 +6,7 @@
 #include <json-glib/json-glib.h>
 #include <string.h>
 #include <types.h>
-
-extern void go_callback_int(int foo, int p1);
-
-gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, UserData *data)
-{
-	go_callback_int(1,7);
-	return TRUE;
-}
+#include <stdio.h>
 
 gboolean print_field (GQuark field, const GValue * value, gpointer pfx) {
   gchar *str = gst_value_serialize (value);
@@ -57,46 +50,10 @@ void print_pad_capabilities (GstElement *element, gchar *pad_name) {
 	gst_object_unref (pad);
 }
 
-gboolean bus_call (GstBus *bus, GstMessage *msg, UserData *data)
+extern gboolean bus_call (GstBus *bus, GstMessage *msg, UserData *data);
+gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, UserData *data)
 {
-  GMainLoop *loop = (*data).loop;
-  GstElement *element = (*data).element;
-  gint64 current = -1;
-  switch (GST_MESSAGE_TYPE (msg)) {
-    case GST_MESSAGE_EOS:
-      g_print ("End of stream\n");
-      g_main_loop_quit (loop);
-      break;
-    case GST_MESSAGE_ERROR: {
-      gchar  *debug;
-      GError *error;
-      gst_message_parse_error (msg, &error, &debug);
-      g_free (debug);
-      g_printerr ("Error: %s\n", error->message);
-      g_error_free (error);
-      g_main_loop_quit (loop);
-      break;
-    }
-    case GST_MESSAGE_ELEMENT:
-    	if (!gst_element_query_position (element, GST_FORMAT_TIME, &current)) {
-    		g_printerr ("Could not query current position.\n");
-    	  }
-    	print_pad_capabilities (element, "sink");
-		g_print ("Position %" GST_TIME_FORMAT "/ %d \n",
-    	              GST_TIME_ARGS (current), GST_MESSAGE_TYPE (msg));
-    	break;
-    case GST_MESSAGE_LATENCY:
-    	break;
-    case GST_MESSAGE_STREAM_START:
-    	break;
-    case GST_MESSAGE_DURATION_CHANGED:
-    	break;
-    case GST_MESSAGE_HAVE_CONTEXT:
-    	break;
-	default:
-		break;
-	}
-	return TRUE;
+  return bus_call(bus, msg, data);
 }
 
 extern void on_answer_created (GstPromise * promise, void * user_data);
@@ -134,5 +91,11 @@ extern void send_ice_candidate_message (GstElement * webrtc G_GNUC_UNUSED, guint
 void send_ice_candidate_message_wrap (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, void *user_data)
 {
     send_ice_candidate_message(webrtc, mlineindex, candidate, user_data);
+}
+
+extern void on_incoming_stream (GstElement * webrtc, GstPad * pad, GstElement * pipe);
+void on_incoming_stream_wrap (GstElement * webrtc, GstPad * pad, GstElement * pipe)
+{
+    on_incoming_stream(webrtc, pad, pipe);
 }
 

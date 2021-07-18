@@ -43,12 +43,11 @@ func on_answer_created(promise *C.GstPromise, user_data unsafe.Pointer) {
 
 	promise = C.gst_promise_new()
 	g_signal_emit_by_name(g.webrtc, "set-local-description", unsafe.Pointer(answer), unsafe.Pointer(promise), nil)
-	C.gst_promise_interrupt(promise)
-	C.gst_promise_unref(promise)
+	//C.gst_promise_interrupt(promise)
+	//C.gst_promise_unref(promise)
 
 	/* Send answer to peer */
 	g.sendSpdToPeer(answer)
-	C.gst_webrtc_session_description_free(answer)
 }
 
 //export on_offer_created
@@ -68,6 +67,31 @@ func on_offer_created(promise *C.GstPromise, webrtc unsafe.Pointer) {
 	/* Implement this and send offer to peer using signalling */
 	//	send_sdp_offer (offer);
 	//C.gst_webrtc_session_description_free (offer)
+}
+
+//export bus_call
+func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
+	switch msg._type {
+	case C.GST_MESSAGE_ERROR:
+		{
+			var debug *C.gchar
+			var error *C.GError
+
+			C.gst_message_parse_error(msg, &error, &debug)
+
+			fmt.Printf("Error: %s\n", C.GoString(error.message))
+			C.g_error_free(error)
+			break
+		}
+	default:
+		break
+	}
+	return 1
+}
+
+//export on_incoming_stream
+func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, pipe *C.GstElement) {
+	fmt.Println("on_incoming_stream")
 }
 
 //export send_ice_candidate_message

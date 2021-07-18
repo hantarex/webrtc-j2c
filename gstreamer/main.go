@@ -36,7 +36,8 @@ type Message struct {
 func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g.c = c
 	C.gst_init(nil, nil)
-	g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! x264enc ! flvmux ! filesink location=xyz.flv"), &g.gError)
+	C.gst_debug_set_default_threshold(C.GST_LEVEL_ERROR)
+	g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! x264enc ! flvmux ! filesink location=xyz.flv"), &g.gError)
 	if g.gError != nil {
 		fmt.Printf("Failed to parse launch: %s\n", g.gError.message)
 		C.g_error_free(g.gError)
@@ -45,8 +46,8 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g_assert_nonnull(C.gpointer(g.webrtc))
 
 	//g_signal_connect(unsafe.Pointer(g.webrtc), "on-negotiation-needed", C.on_negotiation_needed_wrap, unsafe.Pointer(g))
-	//g_signal_connect(unsafe.Pointer(g.webrtc), "on-ice-candidate", C.send_ice_candidate_message_wrap, unsafe.Pointer(g))
-	//g_signal_connect(unsafe.Pointer(webrtc), "pad-added", on_incoming_stream, nil)
+	g_signal_connect(unsafe.Pointer(g.webrtc), "on-ice-candidate", C.send_ice_candidate_message_wrap, unsafe.Pointer(g))
+	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
 
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
 
@@ -55,7 +56,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 
 	var caps *C.GstCaps = C.gst_caps_from_string(C.CString("application/x-rtp,media=video,encoding-name=VP8,payload=96"))
 	trans := new(C.GstWebRTCRTPTransceiver)
-	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(trans))
+	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_SENDONLY, unsafe.Pointer(caps), unsafe.Pointer(trans))
 
 	if send_channel != nil {
 		fmt.Println(send_channel)
@@ -76,7 +77,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	}
 	g.bus = gst_pipeline_get_bus(unsafe.Pointer(g.pipeline))
 	C.gst_bus_add_signal_watch(g.bus)
-	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call, unsafe.Pointer(g.loop))
+	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call_wrap, unsafe.Pointer(g.loop))
 	go g.readMessages()
 	C.g_main_loop_run(g.loop)
 	g_print("aaaa:\n")
