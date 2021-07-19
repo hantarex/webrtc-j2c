@@ -26,18 +26,28 @@ type GStreamer struct {
 	c                *websocket.Conn
 }
 
+type IceCandidate struct {
+	Candidate     string `json:"candidate,omitempty"`
+	SdpMid        string `json:"sdpMid,omitempty"`
+	SdpMLineIndex int    `json:"sdpMLineIndex,omitempty"`
+}
+
 type Message struct {
-	SdpAnswer string `json:"sdpAnswer,omitempty"`
-	SdpOffer  string `json:"sdpOffer,omitempty"`
-	Id        string `json:"id,omitempty"`
-	Key       string `json:"key,omitempty"`
+	SdpAnswer string       `json:"sdpAnswer,omitempty"`
+	SdpOffer  string       `json:"sdpOffer,omitempty"`
+	Candidate IceCandidate `json:"candidate,omitempty"`
+	Id        string       `json:"id,omitempty"`
+	Key       string       `json:"key,omitempty"`
 }
 
 func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g.c = c
 	C.gst_init(nil, nil)
 	C.gst_debug_set_default_threshold(C.GST_LEVEL_ERROR)
-	g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! x264enc ! flvmux ! filesink location=xyz.flv"), &g.gError)
+	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink"), &g.gError)
+	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! autovideosink"), &g.gError)
+	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay request-keyframe=1 ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv"), &g.gError)
+	g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay request-keyframe=1 ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink"), &g.gError)
 	if g.gError != nil {
 		fmt.Printf("Failed to parse launch: %s\n", g.gError.message)
 		C.g_error_free(g.gError)
@@ -54,9 +64,9 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	var send_channel *C.GObject
 	g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&send_channel))
 
-	var caps *C.GstCaps = C.gst_caps_from_string(C.CString("application/x-rtp,media=video,encoding-name=VP8,payload=96"))
+	var caps *C.GstCaps = C.gst_caps_from_string(C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000,max-br=10000"))
 	trans := new(C.GstWebRTCRTPTransceiver)
-	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_SENDONLY, unsafe.Pointer(caps), unsafe.Pointer(trans))
+	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(trans))
 
 	if send_channel != nil {
 		fmt.Println(send_channel)
@@ -134,6 +144,8 @@ func (g *GStreamer) readMessages() {
 		switch msg.Id {
 		case "start":
 			g.on_offer_received(msg)
+		case "onIceCandidate":
+			g.iceCandidateReceived(msg)
 		default:
 			fmt.Println("Error")
 		}
@@ -157,4 +169,16 @@ func (g *GStreamer) on_offer_received(msg Message) {
 	offer = C.gst_webrtc_session_description_new(C.GST_WEBRTC_SDP_TYPE_OFFER, sdp)
 	promise = C.gst_promise_new_with_change_func(C.GCallback(C.on_offer_set_wrap), C.gpointer(g), nil)
 	g_signal_emit_by_name_offer_remote(g.webrtc, "set-remote-description", offer, promise)
+}
+
+func (g *GStreamer) iceCandidateReceived(msg Message) {
+	//fmt.Println(msg.Candidate)
+	//var object *C.JsonObject
+	//
+	//child := C.json_object_get_object_member (object, "ice")
+	//candidate := C.json_object_get_string_member (child, "candidate")
+	//sdpmlineindex := C.json_object_get_int_member (child, "sdpMLineIndex")
+	//
+	///* Add ice candidate sent by remote peer */
+	g_signal_emit_by_name_recv(g.webrtc, "add-ice-candidate", msg.Candidate.SdpMLineIndex, unsafe.Pointer(C.gchararray(C.CString(msg.Candidate.Candidate))), nil)
 }

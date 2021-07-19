@@ -92,6 +92,14 @@ func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
 //export on_incoming_stream
 func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, pipe *C.GstElement) {
 	fmt.Println("on_incoming_stream")
+	//if C.GST_PAD_DIRECTION(pad) != C.GST_PAD_SRC {
+	//	fmt.Println("Pad is not source")
+	//}
+	//new_pad_caps := C.gst_pad_get_current_caps (pad)
+	//new_pad_struct := C.gst_caps_get_structure (new_pad_caps, 0)
+	//fmt.Println(pad.direction)
+	//fmt.Println(C.GST_PAD_SRC)
+	//new_pad_type = gst_structure_get_name (new_pad_struct);
 }
 
 //export send_ice_candidate_message
