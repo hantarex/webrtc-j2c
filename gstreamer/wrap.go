@@ -38,8 +38,8 @@ void g_signal_emit_by_name_recv_wrap(GstElement *instance,char* signal,int one,v
 	g_signal_emit_by_name(instance, signal, one, two, three);
 }
 
-void g_print_wrap(gchar *format) {
-	g_print(format);
+void g_print_wrap(gchar *str) {
+	g_print(str, NULL);
 }
 
 GstBus *gst_pipeline_get_bus_wrap(void *pipeline) {
@@ -47,22 +47,7 @@ GstBus *gst_pipeline_get_bus_wrap(void *pipeline) {
 }
 
 gboolean gst_structure_get_wrap(GstStructure  *structure,char * first_fieldname, ulong one, GstWebRTCSessionDescription** two,void* three) {
-	//GstWebRTCSessionDescription *offer;
-	//g_print("NULL");
-	//if(two == NULL) {
-	//	g_print("1NULL");
-	//}
 	return gst_structure_get(structure, first_fieldname, one, &*two, three, NULL);
-	//if(two == NULL) {
-	//	g_print("2NULL");
-	//}
-	//*two = offer;
-	//return two;
-}
-
-void test_int(char **r) {
-	char *var = "aaaa";
-	*r = var;
 }
 */
 import "C"
@@ -79,27 +64,42 @@ func GST_BIN(r *C.GstElement) *C.GstBin {
 }
 
 func g_signal_connect(instance unsafe.Pointer, detailed_signal string, c_handler unsafe.Pointer, data unsafe.Pointer) C.gulong {
-	return C.g_signal_connect_wrap(C.gpointer(instance), C.CString(detailed_signal), C.GCallback(c_handler), C.gpointer(data))
+	instance_c := C.gpointer(instance)
+	detailed_signal_c := C.CString(detailed_signal)
+	defer C.free(unsafe.Pointer(detailed_signal_c))
+	c_handler_c := C.GCallback(c_handler)
+	data_c := C.gpointer(data)
+	return C.g_signal_connect_wrap(instance_c, detailed_signal_c, c_handler_c, data_c)
 }
 
 func g_signal_emit_by_name(instance *C.GstElement, signal string, one unsafe.Pointer, two unsafe.Pointer, three unsafe.Pointer) {
-	C.g_signal_emit_by_name_wrap(instance, C.CString(signal), one, two, three)
+	sigC := C.CString(signal)
+	defer C.free(unsafe.Pointer(sigC))
+	C.g_signal_emit_by_name_wrap(instance, sigC, one, two, three)
 }
 
 func g_signal_emit_by_name_offer(instance *C.GstElement, signal string, one *C.GstWebRTCSessionDescription) {
-	C.g_signal_emit_by_name_offer_wrap(instance, C.CString(signal), one)
+	sigC := C.CString(signal)
+	defer C.free(unsafe.Pointer(sigC))
+	C.g_signal_emit_by_name_offer_wrap(instance, sigC, one)
 }
 
 func g_signal_emit_by_name_offer_remote(instance *C.GstElement, signal string, one *C.GstWebRTCSessionDescription, two *C.GstPromise) {
-	C.g_signal_emit_by_name_offer_remote_wrap(instance, C.CString(signal), one, two)
+	sigC := C.CString(signal)
+	defer C.free(unsafe.Pointer(sigC))
+	C.g_signal_emit_by_name_offer_remote_wrap(instance, sigC, one, two)
 }
 
 func g_signal_emit_by_name_recv(instance *C.GstElement, signal string, one int, two unsafe.Pointer, three unsafe.Pointer) {
-	C.g_signal_emit_by_name_recv_wrap(instance, C.CString(signal), C.int(one), two, three)
+	sigC := C.CString(signal)
+	defer C.free(unsafe.Pointer(sigC))
+	C.g_signal_emit_by_name_recv_wrap(instance, sigC, C.int(one), two, three)
 }
 
 func g_print(str string) {
-	C.g_print_wrap(C.CString(str))
+	s := C.CString(str)
+	defer C.free(unsafe.Pointer(s))
+	C.g_print_wrap(s)
 }
 
 func gst_pipeline_get_bus(r unsafe.Pointer) *C.GstBus {
@@ -108,7 +108,9 @@ func gst_pipeline_get_bus(r unsafe.Pointer) *C.GstBus {
 
 func gst_structure_get(a1 *C.GstStructure, a2 string, a3 C.ulong, a4 *C.GstWebRTCSessionDescription, a5 unsafe.Pointer) C.gboolean {
 	offer := new(C.GstWebRTCSessionDescription)
-	r := C.gst_structure_get_wrap(a1, C.CString(a2), a3, &offer, a5)
+	a2c := C.CString(a2)
+	defer C.free(unsafe.Pointer(a2c))
+	r := C.gst_structure_get_wrap(a1, a2c, a3, &offer, a5)
 	*a4 = *offer
 	return r
 }

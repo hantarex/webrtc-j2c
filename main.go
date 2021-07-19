@@ -13,7 +13,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
-} // use default options
+}
 
 func ws(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
@@ -21,9 +21,9 @@ func ws(w http.ResponseWriter, r *http.Request) {
 		log.Print("upgrade:", err)
 		return
 	}
-	defer c.Close()
 	gst := new(gstreamer.GStreamer)
 	gst.InitGst(c)
+	//defer gst.Close() //TODO: Поправить чтоб работало
 }
 
 func main() {
@@ -31,7 +31,4 @@ func main() {
 	log.SetFlags(0)
 	http.HandleFunc("/ws", ws)
 	http.ListenAndServe(*addr, nil)
-
-	//gst := new(gstreamer.GStreamer)
-	//gst.InitGst(new(websocket.Conn))
 }
