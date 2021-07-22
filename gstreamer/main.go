@@ -1,10 +1,11 @@
 package gstreamer
 
 /*
-#cgo pkg-config: gstreamer-plugins-bad-1.0 gstreamer-rtp-1.0 gstreamer-plugins-good-1.0 gstreamer-webrtc-1.0 gstreamer-plugins-base-1.0 glib-2.0 libsoup-2.4 json-glib-1.0
-#cgo CFLAGS: -Wall
+#cgo pkg-config: glib-2.0 libsoup-2.4 json-glib-1.0
+#cgo CFLAGS: -pthread -Wall
 #cgo CFLAGS: -Wno-deprecated-declarations -Wimplicit-function-declaration -Wformat-security
-#cgo LDFLAGS: -lgstsdp-1.0
+#cgo CFLAGS: -I/usr/include/gstreamer-1.0 -I/usr/local/include/orc-0.4
+#cgo LDFLAGS: -lgstsdp-1.0 -lgstreamer-1.0 -lgstwebrtc-1.0 -lgstbase-1.0 -lgobject-2.0 -lglib-2.0
 #include <cfunc.h>
 */
 import "C"
@@ -24,18 +25,30 @@ type GStreamer struct {
 	loop             *C.GMainLoop
 	ret              C.GstStateChangeReturn
 	c                *websocket.Conn
-	trans            *C.GstWebRTCRTPTransceiver
+	desc             *C.GstWebRTCSessionDescription
+	//trans            *C.GstWebRTCRTPTransceiver
 }
 
 func (g *GStreamer) Close() {
-	fmt.Println(g.pipeline)
+	fmt.Println("Close method!!!")
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
-	fmt.Println(g.pipeline)
+	C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
+	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
+	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
+	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
+	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
 	C.g_main_loop_quit(g.loop)
-	C.gst_object_unref(C.gpointer(unsafe.Pointer(g.pipeline)))
-	fmt.Println(g.pipeline)
-	C.g_main_loop_unref(g.loop)
+	ret := C.gst_element_get_state(g.webrtc, nil, nil, 5*C.GST_SECOND)
+	fmt.Println(ret)
 	g.c.Close()
+	C.gst_object_unref(C.gpointer(g.pipeline))
+	C.gst_object_unref(C.gpointer(g.webrtc))
+	C.gst_object_unref(C.gpointer(g.bus))
+	C.gst_object_unref(C.gpointer(g.send_channel))
+	C.g_main_loop_unref(g.loop)
+	//C.gst_webrtc_session_description_free(g.desc)
+	//C.free(unsafe.Pointer(g.pipeline))
+	//C.free(unsafe.Pointer(g.webrtc))
 }
 
 type IceCandidate struct {
@@ -61,6 +74,8 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_init(nil, nil)
 	C.gst_debug_set_default_threshold(C.GST_LEVEL_ERROR)
 	pipeStr := C.CString("webrtcbin bundle-policy=max-bundle name=recv recv. ! rtph264depay ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink")
+	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink")
+	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay request-keyframe=1 ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv")
 	defer C.free(unsafe.Pointer(pipeStr))
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink"), &g.gError)
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! autovideosink"), &g.gError)
@@ -81,19 +96,18 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
 
-	g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&g.send_channel))
+	//g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&g.send_channel))
 
 	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000,max-br=10000")
 	defer C.free(unsafe.Pointer(capsStr))
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
-	g.trans = new(C.GstWebRTCRTPTransceiver)
-	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(g.trans))
+	g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
 
-	if g.send_channel != nil {
-		fmt.Println("Created data channel")
-	} else {
-		fmt.Println("Could not create data channel, is usrsctp available?")
-	}
+	//if g.send_channel != nil {
+	//	fmt.Println("Created data channel")
+	//} else {
+	//	fmt.Println("Could not create data channel, is usrsctp available?")
+	//}
 
 	g.loop = C.g_main_loop_new(nil, 0)
 	g.ret = C.gst_element_set_state(g.pipeline, C.GST_STATE_PLAYING)
@@ -106,6 +120,11 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call_wrap, unsafe.Pointer(g.loop))
 	go g.readMessages()
 	C.g_main_loop_run(g.loop)
+
+	//g.pipeline.removeElement(g.webrtc)
+	//g.webrtc.setState(C.GST_STATE_NULL)
+	C.gst_object_unref(C.gpointer(g.bus))
+
 	fmt.Println("Close session!")
 }
 
@@ -132,6 +151,7 @@ func (g GStreamer) sendSpdToPeer(desc *C.GstWebRTCSessionDescription) {
 		Id:        "startResponse",
 		SdpAnswer: C.GoString(text),
 	})
+	C.g_free(C.gpointer(text))
 	if err != nil {
 		log.Println("sendSpdToPeer:", err)
 		g.c.Close()

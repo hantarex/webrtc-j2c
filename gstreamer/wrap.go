@@ -38,6 +38,14 @@ void g_signal_emit_by_name_recv_wrap(GstElement *instance,char* signal,int one,v
 	g_signal_emit_by_name(instance, signal, one, two, three);
 }
 
+void g_signal_emit_by_name_trans(GstElement *instance,char* signal,int one,void* two) {
+	GstWebRTCRTPTransceiver *trans = NULL;
+	g_signal_emit_by_name(instance, signal, one, two, &trans);
+	if( trans != NULL ) {
+		gst_object_unref (trans);
+	}
+}
+
 void g_print_wrap(gchar *str) {
 	g_print(str, NULL);
 }
@@ -94,6 +102,12 @@ func g_signal_emit_by_name_recv(instance *C.GstElement, signal string, one int, 
 	sigC := C.CString(signal)
 	defer C.free(unsafe.Pointer(sigC))
 	C.g_signal_emit_by_name_recv_wrap(instance, sigC, C.int(one), two, three)
+}
+
+func g_signal_emit_by_name_trans(instance *C.GstElement, signal string, one int, two unsafe.Pointer) {
+	sigC := C.CString(signal)
+	defer C.free(unsafe.Pointer(sigC))
+	C.g_signal_emit_by_name_trans(instance, sigC, C.int(one), two)
 }
 
 func g_print(str string) {

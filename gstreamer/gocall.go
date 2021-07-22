@@ -32,12 +32,14 @@ func on_answer_created(promise *C.GstPromise, user_data unsafe.Pointer) {
 	reply := C.gst_promise_get_reply(promise)
 	gst_structure_get(reply, "answer", C.GST_TYPE_WEBRTC_SESSION_DESCRIPTION, answer, nil)
 	C.gst_promise_unref(promise)
-
+	//
 	promise = C.gst_promise_new()
 	g_signal_emit_by_name(g.webrtc, "set-local-description", unsafe.Pointer(answer), unsafe.Pointer(promise), nil)
-
-	/* Send answer to peer */
+	C.gst_promise_unref(promise)
+	///* Send answer to peer */
 	g.sendSpdToPeer(answer)
+	//fmt.Println("free")
+	//C.gst_webrtc_session_description_free(answer)
 }
 
 //export on_offer_created
