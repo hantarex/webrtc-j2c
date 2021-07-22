@@ -111,4 +111,5 @@ func send_ice_candidate_message(webrtc *C.GstElement, mlineindex C.long, candida
 	C.json_object_set_object_member(msg, iceStr, ice)
 	//text := get_string_from_json_object(msg)
 	//fmt.Println(C.GoString(text))
+	//C.g_free(C.gpointer(text))
 }

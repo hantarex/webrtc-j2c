@@ -24,6 +24,7 @@ type GStreamer struct {
 	loop             *C.GMainLoop
 	ret              C.GstStateChangeReturn
 	c                *websocket.Conn
+	trans            *C.GstWebRTCRTPTransceiver
 }
 
 func (g *GStreamer) Close() {
@@ -58,8 +59,10 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	}()
 	g.c = c
 	C.gst_init(nil, nil)
-	C.gst_debug_set_default_threshold(C.GST_LEVEL_ERROR)
-	pipeStr := C.CString("webrtcbin bundle-policy=max-bundle name=recv recv. ! rtph264depay ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink")
+	C.gst_debug_set_default_threshold(C.GST_LEVEL_WARNING)
+	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle ice-tcp=false name=recv recv. ! rtph264depay ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink")
+	pipeStr := C.CString("webrtcbin bundle-policy=max-bundle ice-tcp=false latency=200 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! video/x-h264,stream-format=(string)avc ! queue2 ! avdec_h264 ! queue2 ! videoconvert ! queue ! autovideosink")
+	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv")
 	defer C.free(unsafe.Pointer(pipeStr))
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink"), &g.gError)
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! autovideosink"), &g.gError)
@@ -81,16 +84,35 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
 
 	g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&g.send_channel))
+	//g_signal_emit_by_name(g.webrtc, "add-local-ip-address", unsafe.Pointer(C.CString("127.0.0.1")), nil, nil)
 
-	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000,max-br=10000")
+	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264")
 	defer C.free(unsafe.Pointer(capsStr))
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
-	g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
+	g.trans = new(C.GstWebRTCRTPTransceiver)
+	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(g.trans))
+
+	//g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
 	if g.send_channel != nil {
 		fmt.Println("Created data channel")
 	} else {
 		fmt.Println("Could not create data channel, is usrsctp available?")
 	}
+
+	transceivers := new(C.GArray)
+	g_signal_emit_by_name(g.webrtc, "get-transceivers", unsafe.Pointer(&transceivers), nil, nil)
+	//C.g_assert (transceivers != nil && transceivers->len > 0);
+
+	fmt.Println(transceivers.len)
+
+	for i := 0; i < transceivers.len; i++ {
+		trans := C.g_array_index(transceivers, *C.GstWebRTCRTPTransceiver, i)
+		fmt.Println(trans)
+		//trans->direction = GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_SENDONLY;
+		//g_object_set (trans, "fec-type", GST_WEBRTC_FEC_TYPE_ULP_RED,
+		//	"fec-percentage", 50, "do-nack", FALSE, NULL);
+	}
+	C.g_array_unref(transceivers)
 
 	g.loop = C.g_main_loop_new(nil, 0)
 	g.ret = C.gst_element_set_state(g.pipeline, C.GST_STATE_PLAYING)
@@ -125,6 +147,7 @@ func (g GStreamer) sendSpdToPeer(desc *C.GstWebRTCSessionDescription) {
 		g.c.Close()
 		return
 	}
+	fmt.Println(C.GoString(text))
 	err := g.c.WriteJSON(Message{
 		Id:        "startResponse",
 		SdpAnswer: C.GoString(text),
