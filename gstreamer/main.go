@@ -28,14 +28,14 @@ type GStreamer struct {
 }
 
 func (g *GStreamer) Close() {
-	fmt.Println(g.pipeline)
-	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
-	fmt.Println(g.pipeline)
-	C.g_main_loop_quit(g.loop)
-	C.gst_object_unref(C.gpointer(unsafe.Pointer(g.pipeline)))
-	fmt.Println(g.pipeline)
-	C.g_main_loop_unref(g.loop)
 	g.c.Close()
+	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
+	C.g_main_loop_quit(g.loop)
+	C.gst_object_unref(C.gpointer(g.bus))
+	C.gst_object_unref(C.gpointer(g.send_channel))
+	C.gst_object_unref(C.gpointer(g.pipeline))
+	C.gst_object_unref(C.gpointer(g.webrtc))
+	C.g_main_loop_unref(g.loop)
 }
 
 type IceCandidate struct {
@@ -87,7 +87,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	defer C.free(unsafe.Pointer(capsStr))
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
 	g.trans = new(C.GstWebRTCRTPTransceiver)
-	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(g.trans))
+	g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
 
 	if g.send_channel != nil {
 		fmt.Println("Created data channel")
@@ -132,6 +132,7 @@ func (g GStreamer) sendSpdToPeer(desc *C.GstWebRTCSessionDescription) {
 		Id:        "startResponse",
 		SdpAnswer: C.GoString(text),
 	})
+	C.g_free(C.gpointer(text))
 	if err != nil {
 		log.Println("sendSpdToPeer:", err)
 		g.c.Close()
