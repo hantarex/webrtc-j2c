@@ -24,7 +24,6 @@ type GStreamer struct {
 	loop             *C.GMainLoop
 	ret              C.GstStateChangeReturn
 	c                *websocket.Conn
-	trans            *C.GstWebRTCRTPTransceiver
 }
 
 func (g *GStreamer) Close() {
@@ -86,9 +85,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000,max-br=10000")
 	defer C.free(unsafe.Pointer(capsStr))
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
-	g.trans = new(C.GstWebRTCRTPTransceiver)
 	g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
-
 	if g.send_channel != nil {
 		fmt.Println("Created data channel")
 	} else {
