@@ -58,7 +58,8 @@ func on_offer_created(promise *C.GstPromise, webrtc unsafe.Pointer) {
 }
 
 //export bus_call
-func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
+func bus_call(bus *C.GstBus, msg *C.GstMessage, data unsafe.Pointer) C.gboolean {
+	g := (*GStreamer)(data)
 	switch msg._type {
 	case C.GST_MESSAGE_ERROR:
 		{
@@ -68,6 +69,7 @@ func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
 			C.gst_message_parse_error(msg, &gError, &debug)
 			log.Printf("Error: %s\n", C.GoString(gError.message))
 			C.g_error_free(gError)
+			g.c.Close()
 			break
 		}
 	default:

@@ -50,8 +50,8 @@ void print_pad_capabilities (GstElement *element, gchar *pad_name) {
 	gst_object_unref (pad);
 }
 
-extern gboolean bus_call (GstBus *bus, GstMessage *msg, UserData *data);
-gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, UserData *data)
+extern gboolean bus_call (GstBus *bus, GstMessage *msg, void *data);
+gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, void *data)
 {
   return bus_call(bus, msg, data);
 }

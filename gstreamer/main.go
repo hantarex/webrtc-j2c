@@ -133,7 +133,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	}
 	g.bus = gst_pipeline_get_bus(unsafe.Pointer(g.pipeline))
 	C.gst_bus_add_signal_watch(g.bus)
-	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call_wrap, unsafe.Pointer(g.loop))
+	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call_wrap, unsafe.Pointer(g))
 	go g.readMessages()
 	C.g_main_loop_run(g.loop)
 	fmt.Println("Close session!")
