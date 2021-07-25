@@ -99,3 +99,10 @@ void on_incoming_stream_wrap (GstElement * webrtc, GstPad * pad, GstElement * pi
     on_incoming_stream(webrtc, pad, pipe);
 }
 
+GstWebRTCRTPTransceiver *g_array_index_wrap(GArray *a,int i) {
+    return  g_array_index(a, GstWebRTCRTPTransceiver*, i);
+}
+
+void g_object_set_fec(GstWebRTCRTPTransceiver* trans) {
+    g_object_set(trans, "fec-type", GST_WEBRTC_FEC_TYPE_ULP_RED, "do-nack", TRUE, NULL);
+}

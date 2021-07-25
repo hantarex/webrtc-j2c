@@ -16,3 +16,5 @@ gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, UserData *data);
 void send_ice_candidate_message_wrap (GstElement * webrtc G_GNUC_UNUSED, guint mlineindex, gchar * candidate, gpointer user_data G_GNUC_UNUSED);
 void on_incoming_stream_wrap (GstElement * webrtc, GstPad * pad, GstElement * pipe);
 GstSDPResult gst_sdp_message_parse_buffer_wrap(gchar *data, ulong size, GstSDPMessage *msg);
+GstWebRTCRTPTransceiver *g_array_index_wrap(GArray *a, int i);
+void g_object_set_fec(GstWebRTCRTPTransceiver* trans);
