@@ -31,6 +31,9 @@ func (g *GStreamer) Close() {
 	g.c.Close()
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
 	C.g_main_loop_quit(g.loop)
+	if g.trans != nil {
+		C.gst_object_unref(C.gpointer(g.trans))
+	}
 	C.gst_object_unref(C.gpointer(g.bus))
 	C.gst_object_unref(C.gpointer(g.send_channel))
 	C.gst_object_unref(C.gpointer(g.pipeline))
