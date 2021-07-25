@@ -106,3 +106,7 @@ GstWebRTCRTPTransceiver *g_array_index_wrap(GArray *a,int i) {
 void g_object_set_fec(GstWebRTCRTPTransceiver* trans) {
     g_object_set(trans, "fec-type", GST_WEBRTC_FEC_TYPE_ULP_RED, "do-nack", TRUE, NULL);
 }
+
+void gst_caps_set_simple_wrap(GstCaps *caps, char *field, int type, void *value) {
+    gst_caps_set_simple (caps, field, type, value, NULL);
+}

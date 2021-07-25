@@ -89,6 +89,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000")
 	defer C.free(unsafe.Pointer(capsStr))
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
+	//C.gst_caps_set_simple_wrap(caps,  C.CString("extmap"), C.G_TYPE_STRING, unsafe.Pointer(C.CString("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time")))
 	//C.gst_caps_set_simple(caps,
 	//	"flavor", G_TYPE_INT, demux->flavour,
 	//	"rate", G_TYPE_INT, demux->sample_rate,
@@ -144,6 +145,13 @@ func (g GStreamer) sendSpdToPeer(desc *C.GstWebRTCSessionDescription) {
 	//		APP_STATE_ERROR);
 	//	return;
 	//}
+
+	//media := C.gst_sdp_message_get_media(desc.sdp, 1)
+	//
+	//var caps *C.GstCaps = new(C.GstCaps)
+	//C.gst_caps_set_simple_wrap(caps,  C.CString("extmap"), C.G_TYPE_STRING, unsafe.Pointer(C.CString("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time")))
+	//C.gst_sdp_media_attributes_to_caps(media, caps)
+
 	text := C.gst_sdp_message_as_text(desc.sdp)
 
 	if desc._type == C.GST_WEBRTC_SDP_TYPE_OFFER {
