@@ -44,7 +44,7 @@ func (g *GStreamer) Close() {
 type IceCandidate struct {
 	Candidate     string `json:"candidate,omitempty"`
 	SdpMid        string `json:"sdpMid,omitempty"`
-	SdpMLineIndex int    `json:"sdpMLineIndex,omitempty"`
+	SdpMLineIndex int    `json:"sdpMLineIndex"`
 }
 
 type Message struct {
@@ -176,6 +176,24 @@ func (g GStreamer) sendSpdToPeer(desc *C.GstWebRTCSessionDescription) {
 	C.g_free(C.gpointer(text))
 	if err != nil {
 		log.Println("sendSpdToPeer:", err)
+		g.c.Close()
+	}
+}
+
+func (g GStreamer) sendIceCandidate(ice string) {
+	var msg Message
+	fmt.Println(ice)
+	if err := json.Unmarshal([]byte(ice), &msg); err != nil {
+		log.Printf("Сбой демаршалинга JON: %s\n", err)
+		g.c.Close()
+	}
+	fmt.Println(msg.Candidate)
+	err := g.c.WriteJSON(Message{
+		Id:        "iceCandidate",
+		Candidate: msg.Candidate,
+	})
+	if err != nil {
+		log.Println("iceCandidate:", err)
 		g.c.Close()
 	}
 }

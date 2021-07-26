@@ -93,7 +93,7 @@ func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, pipe *C.GstElement)
 
 //export send_ice_candidate_message
 func send_ice_candidate_message(webrtc *C.GstElement, mlineindex C.long, candidate *C.gchar, user_data unsafe.Pointer) {
-	//g := (*GStreamer)(user_data)
+	g := (*GStreamer)(user_data)
 	//
 	//   if (app_state < PEER_CALL_NEGOTIATING) {
 	//   	g_print ("Can't send ICE, not in call", APP_STATE_ERROR);
@@ -108,10 +108,11 @@ func send_ice_candidate_message(webrtc *C.GstElement, mlineindex C.long, candida
 	C.json_object_set_string_member(ice, candidateStr, (*C.gchar)(candidate))
 	C.json_object_set_int_member(ice, sdpMLineIndex, mlineindex)
 	msg := C.json_object_new()
-	iceStr := C.CString("ice")
+	iceStr := C.CString("candidate")
 	defer C.free(unsafe.Pointer(iceStr))
 	C.json_object_set_object_member(msg, iceStr, ice)
-	//text := get_string_from_json_object(msg)
-	//fmt.Println(C.GoString(text))
+	text := get_string_from_json_object(msg)
+	defer C.g_free(C.gpointer(text))
 	//C.g_free(C.gpointer(text))
+	g.sendIceCandidate(C.GoString(text))
 }
