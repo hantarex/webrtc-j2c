@@ -110,3 +110,12 @@ void g_object_set_fec(GstWebRTCRTPTransceiver* trans) {
 void gst_caps_set_simple_wrap(GstCaps *caps, char *field, int type, void *value) {
     gst_caps_set_simple (caps, field, type, value, NULL);
 }
+
+GstCaps *set_caps() {
+    return gst_caps_new_simple ("application/x-rtp",
+           			            "media", G_TYPE_STRING, "video",
+           			            "encoding-name", G_TYPE_STRING, "VP9",
+           			            "payload", G_TYPE_INT, 100,
+           			            "clock-rate", G_TYPE_INT, 90000,
+           			            NULL);
+}

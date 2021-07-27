@@ -77,17 +77,17 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	defer C.free(unsafe.Pointer(webrtcName))
 	g.webrtc = C.gst_element_factory_make(webrtcName, webrtcName)
 	// rtph264depay
-	rtph264depayName := C.CString("rtph264depay")
+	rtph264depayName := C.CString("rtpvp9depay")
 	defer C.free(unsafe.Pointer(rtph264depayName))
 	g.rtph264depay = C.gst_element_factory_make(rtph264depayName, rtph264depayName)
 	// h264parse
-	h264parseName := C.CString("h264parse")
+	h264parseName := C.CString("vp9dec")
 	defer C.free(unsafe.Pointer(h264parseName))
 	g.h264parse = C.gst_element_factory_make(h264parseName, h264parseName)
 	// avdec_h264
-	avdec_h264Name := C.CString("avdec_h264")
-	defer C.free(unsafe.Pointer(avdec_h264Name))
-	g.avdec_h264 = C.gst_element_factory_make(avdec_h264Name, avdec_h264Name)
+	//avdec_h264Name := C.CString("avdec_h264")
+	//defer C.free(unsafe.Pointer(avdec_h264Name))
+	//g.avdec_h264 = C.gst_element_factory_make(avdec_h264Name, avdec_h264Name)
 	// videoconvert
 	videoconvertName := C.CString("videoconvert")
 	defer C.free(unsafe.Pointer(videoconvertName))
@@ -100,14 +100,14 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_bin_add(GST_BIN(g.pipeline), g.webrtc)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtph264depay)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.h264parse)
-	C.gst_bin_add(GST_BIN(g.pipeline), g.avdec_h264)
+	//C.gst_bin_add(GST_BIN(g.pipeline), g.avdec_h264)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.videoconvert)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.autovideosink)
 
 	C.gst_element_link(g.webrtc, g.rtph264depay)
 	C.gst_element_link(g.rtph264depay, g.h264parse)
-	C.gst_element_link(g.h264parse, g.avdec_h264)
-	C.gst_element_link(g.avdec_h264, g.videoconvert)
+	//C.gst_element_link(g.h264parse, g.avdec_h264)
+	C.gst_element_link(g.h264parse, g.videoconvert)
 	C.gst_element_link(g.videoconvert, g.autovideosink)
 
 	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
@@ -120,9 +120,9 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&g.send_channel))
 	//g_signal_emit_by_name(g.webrtc, "add-local-ip-address", unsafe.Pointer(C.CString("127.0.0.1")), nil, nil)
 
-	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000")
-	defer C.free(unsafe.Pointer(capsStr))
-	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
+	//capsStr := C.CString("application/x-rtp,media=video,encoding-name=VP9-DRAFT-IETF-01,payload=100,clock-rate=90000")
+	//defer C.free(unsafe.Pointer(capsStr))
+	var caps *C.GstCaps = C.set_caps()
 	//C.gst_caps_set_simple_wrap(caps,  C.CString("extmap"), C.G_TYPE_STRING, unsafe.Pointer(C.CString("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time")))
 
 	g.trans = new(C.GstWebRTCRTPTransceiver)

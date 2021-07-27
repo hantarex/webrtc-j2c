@@ -81,12 +81,16 @@ func bus_call(bus *C.GstBus, msg *C.GstMessage, data unsafe.Pointer) C.gboolean 
 //export on_incoming_stream
 func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, user_data unsafe.Pointer) {
 	fmt.Println("on_incoming_stream")
+	new_pad_caps := C.gst_pad_get_current_caps(pad)
+	new_pad_struct := C.gst_caps_get_structure(new_pad_caps, 0)
+	new_pad_type := C.gst_structure_get_name(new_pad_struct)
+	fmt.Println(C.GoString(new_pad_type))
 	g := (*GStreamer)(user_data)
 	sinkName := C.CString("sink")
 	defer C.free(unsafe.Pointer(sinkName))
 	sinkpad := C.gst_element_get_static_pad(g.rtph264depay, sinkName)
 	C.gst_pad_link(pad, sinkpad)
-	C.gst_object_unref(C.gpointer(sinkpad))
+	//C.gst_object_unref(C.gpointer(sinkpad))
 	//if C.GST_PAD_DIRECTION(pad) != C.GST_PAD_SRC {
 	//	fmt.Println("Pad is not source")
 	//}
