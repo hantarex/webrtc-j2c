@@ -122,3 +122,15 @@ func send_ice_candidate_message(webrtc *C.GstElement, mlineindex C.long, candida
 	//C.g_free(C.gpointer(text))
 	g.sendIceCandidate(C.GoString(text))
 }
+
+func g_object_set(object C.gpointer, f1 string, f2 unsafe.Pointer) {
+	f1Name := C.CString(f1)
+	defer C.free(unsafe.Pointer(f1Name))
+	C.g_object_set_wrap(object, f1Name, f2)
+}
+
+func g_object_set_bool(object C.gpointer, f1 string, f2 bool) {
+	f1Name := C.CString(f1)
+	defer C.free(unsafe.Pointer(f1Name))
+	C.g_object_set_bool_wrap(object, f1Name, C.bool(f2))
+}

@@ -6,6 +6,7 @@
 #include <json-glib/json-glib.h>
 #include <string.h>
 #include <types.h>
+#include <stdbool.h>
 
 gboolean bus_call (GstBus *bus, GstMessage *msg, void *data);
 void on_negotiation_needed_wrap (GstElement * webrtc, gpointer user_data);
@@ -19,3 +20,6 @@ GstSDPResult gst_sdp_message_parse_buffer_wrap(gchar *data, ulong size, GstSDPMe
 GstWebRTCRTPTransceiver *g_array_index_wrap(GArray *a, int i);
 void g_object_set_fec(GstWebRTCRTPTransceiver* trans);
 void gst_caps_set_simple_wrap(GstCaps *caps, char *field, int type, void *value);
+void g_object_set_wrap(gpointer object_type, gchar *first_property_name, void *three);
+void g_object_set_bool_wrap(gpointer object_type, gchar *first_property_name, bool three);
+GstCaps *gst_caps_set_format();

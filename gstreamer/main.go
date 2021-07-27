@@ -17,14 +17,14 @@ import (
 )
 
 type GStreamer struct {
-	webrtc, pipeline, rtph264depay, h264parse, avdec_h264, videoconvert, autovideosink *C.GstElement
-	gError                                                                             *C.GError
-	send_channel                                                                       *C.GObject
-	bus                                                                                *C.GstBus
-	loop                                                                               *C.GMainLoop
-	ret                                                                                C.GstStateChangeReturn
-	c                                                                                  *websocket.Conn
-	trans                                                                              *C.GstWebRTCRTPTransceiver
+	webrtc, pipeline, rtph264depay, h264parse, avdec_h264, videoconvert, autovideosink, flvmux, rtmp2sink, capsfilter *C.GstElement
+	gError                                                                                                            *C.GError
+	send_channel                                                                                                      *C.GObject
+	bus                                                                                                               *C.GstBus
+	loop                                                                                                              *C.GMainLoop
+	ret                                                                                                               C.GstStateChangeReturn
+	c                                                                                                                 *websocket.Conn
+	trans                                                                                                             *C.GstWebRTCRTPTransceiver
 }
 
 func (g *GStreamer) Close() {
@@ -63,7 +63,8 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_init(nil, nil)
 	C.gst_debug_set_default_threshold(C.GST_LEVEL_WARNING)
 	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle ice-tcp=false name=recv recv. ! rtph264depay ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink")
-	pipeStr := C.CString("webrtcbin stun-server=stun://stun.l.google.com:19302 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! video/x-h264,stream-format=(string)avc ! queue2 ! avdec_h264 ! queue2 ! videoconvert ! queue ! autovideosink")
+	//pipeStr := C.CString("webrtcbin stun-server=stun://stun.l.google.com:19302 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! video/x-h264,stream-format=(string)avc ! queue2 ! avdec_h264 ! queue2 ! videoconvert ! queue ! autovideosink")
+	pipeStr := C.CString("webrtcbin stun-server=stun://stun.l.google.com:19302 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! flvmux ! rtmp2sink sync=false location=rtmp://localhost:1935/hls_dash/${name}_mid")
 	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv")
 	defer C.free(unsafe.Pointer(pipeStr))
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink"), &g.gError)
@@ -84,31 +85,39 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	h264parseName := C.CString("h264parse")
 	defer C.free(unsafe.Pointer(h264parseName))
 	g.h264parse = C.gst_element_factory_make(h264parseName, h264parseName)
-	// avdec_h264
-	avdec_h264Name := C.CString("avdec_h264")
-	defer C.free(unsafe.Pointer(avdec_h264Name))
-	g.avdec_h264 = C.gst_element_factory_make(avdec_h264Name, avdec_h264Name)
-	// videoconvert
-	videoconvertName := C.CString("videoconvert")
-	defer C.free(unsafe.Pointer(videoconvertName))
-	g.videoconvert = C.gst_element_factory_make(videoconvertName, videoconvertName)
-	// autovideosink
-	autovideosinkName := C.CString("autovideosink")
-	defer C.free(unsafe.Pointer(autovideosinkName))
-	g.autovideosink = C.gst_element_factory_make(autovideosinkName, autovideosinkName)
+	// capsfilter
+	capsfilterName := C.CString("capsfilter")
+	defer C.free(unsafe.Pointer(capsfilterName))
+	g.capsfilter = C.gst_element_factory_make(capsfilterName, capsfilterName)
+	filtercaps := C.gst_caps_set_format()
+	g_object_set(C.gpointer(g.capsfilter), "caps", unsafe.Pointer(filtercaps))
+	// flvmux
+	flvmuxName := C.CString("flvmux")
+	defer C.free(unsafe.Pointer(flvmuxName))
+	g.flvmux = C.gst_element_factory_make(flvmuxName, flvmuxName)
+	// rtmp2sink
+	rtmp2sinkName := C.CString("rtmp2sink")
+	defer C.free(unsafe.Pointer(rtmp2sinkName))
+	g.rtmp2sink = C.gst_element_factory_make(rtmp2sinkName, rtmp2sinkName)
 
 	C.gst_bin_add(GST_BIN(g.pipeline), g.webrtc)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtph264depay)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.h264parse)
-	C.gst_bin_add(GST_BIN(g.pipeline), g.avdec_h264)
-	C.gst_bin_add(GST_BIN(g.pipeline), g.videoconvert)
-	C.gst_bin_add(GST_BIN(g.pipeline), g.autovideosink)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.capsfilter)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.flvmux)
+	g_object_set_bool(C.gpointer(g.flvmux), "streamable", true)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.rtmp2sink)
+	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString("rtmp://127.0.0.1:1937/test/test")))
+	g_object_set_bool(C.gpointer(g.rtmp2sink), "sync", false)
 
 	C.gst_element_link(g.webrtc, g.rtph264depay)
 	C.gst_element_link(g.rtph264depay, g.h264parse)
-	C.gst_element_link(g.h264parse, g.avdec_h264)
-	C.gst_element_link(g.avdec_h264, g.videoconvert)
-	C.gst_element_link(g.videoconvert, g.autovideosink)
+	C.gst_element_link(g.h264parse, g.capsfilter)
+	C.gst_element_link(g.flvmux, g.rtmp2sink)
+
+	video_pad := C.gst_element_get_static_pad(g.capsfilter, C.CString("src"))
+	target_pad_video := C.gst_element_get_request_pad(g.flvmux, C.CString("video"))
+	C.gst_pad_link(video_pad, target_pad_video)
 
 	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
 

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <types.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 gboolean print_field (GQuark field, const GValue * value, gpointer pfx) {
   gchar *str = gst_value_serialize (value);
@@ -109,4 +110,15 @@ void g_object_set_fec(GstWebRTCRTPTransceiver* trans) {
 
 void gst_caps_set_simple_wrap(GstCaps *caps, char *field, int type, void *value) {
     gst_caps_set_simple (caps, field, type, value, NULL);
+}
+
+void g_object_set_wrap(gpointer object_type, gchar *first_property_name, void *three) {
+    g_object_set(object_type, first_property_name, three, NULL);
+}
+
+void g_object_set_bool_wrap(gpointer object_type, gchar *first_property_name, bool three) {
+    g_object_set(object_type, first_property_name, three, NULL);
+}
+GstCaps *gst_caps_set_format() {
+    return gst_caps_new_simple("video/x-h264", "stream-format", G_TYPE_STRING, "avc", NULL);
 }
