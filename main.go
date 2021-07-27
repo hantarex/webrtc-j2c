@@ -23,7 +23,6 @@ func ws(w http.ResponseWriter, r *http.Request) {
 	}
 	gst := new(gstreamer.GStreamer)
 	gst.InitGst(c)
-	//defer gst.Close() //TODO: Поправить чтоб работало
 }
 
 func main() {

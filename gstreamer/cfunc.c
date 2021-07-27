@@ -50,8 +50,8 @@ void print_pad_capabilities (GstElement *element, gchar *pad_name) {
 	gst_object_unref (pad);
 }
 
-extern gboolean bus_call (GstBus *bus, GstMessage *msg, UserData *data);
-gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, UserData *data)
+extern gboolean bus_call (GstBus *bus, GstMessage *msg, void *data);
+gboolean bus_call_wrap (GstBus *bus, GstMessage *msg, void *data)
 {
   return bus_call(bus, msg, data);
 }
@@ -99,3 +99,14 @@ void on_incoming_stream_wrap (GstElement * webrtc, GstPad * pad, GstElement * pi
     on_incoming_stream(webrtc, pad, pipe);
 }
 
+GstWebRTCRTPTransceiver *g_array_index_wrap(GArray *a,int i) {
+    return  g_array_index(a, GstWebRTCRTPTransceiver*, i);
+}
+
+void g_object_set_fec(GstWebRTCRTPTransceiver* trans) {
+    g_object_set(trans, "fec-type", GST_WEBRTC_FEC_TYPE_ULP_RED, "do-nack", TRUE, NULL);
+}
+
+void gst_caps_set_simple_wrap(GstCaps *caps, char *field, int type, void *value) {
+    gst_caps_set_simple (caps, field, type, value, NULL);
+}

@@ -58,7 +58,8 @@ func on_offer_created(promise *C.GstPromise, webrtc unsafe.Pointer) {
 }
 
 //export bus_call
-func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
+func bus_call(bus *C.GstBus, msg *C.GstMessage, data unsafe.Pointer) C.gboolean {
+	g := (*GStreamer)(data)
 	switch msg._type {
 	case C.GST_MESSAGE_ERROR:
 		{
@@ -68,6 +69,7 @@ func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
 			C.gst_message_parse_error(msg, &gError, &debug)
 			log.Printf("Error: %s\n", C.GoString(gError.message))
 			C.g_error_free(gError)
+			g.c.Close()
 			break
 		}
 	default:
@@ -77,8 +79,14 @@ func bus_call(bus *C.GstBus, msg *C.GstMessage, data *C.UserData) C.gboolean {
 }
 
 //export on_incoming_stream
-func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, pipe *C.GstElement) {
+func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, user_data unsafe.Pointer) {
 	fmt.Println("on_incoming_stream")
+	g := (*GStreamer)(user_data)
+	sinkName := C.CString("sink")
+	defer C.free(unsafe.Pointer(sinkName))
+	sinkpad := C.gst_element_get_static_pad(g.rtph264depay, sinkName)
+	C.gst_pad_link(pad, sinkpad)
+	C.gst_object_unref(C.gpointer(sinkpad))
 	//if C.GST_PAD_DIRECTION(pad) != C.GST_PAD_SRC {
 	//	fmt.Println("Pad is not source")
 	//}
@@ -91,7 +99,7 @@ func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, pipe *C.GstElement)
 
 //export send_ice_candidate_message
 func send_ice_candidate_message(webrtc *C.GstElement, mlineindex C.long, candidate *C.gchar, user_data unsafe.Pointer) {
-	//g := (*GStreamer)(user_data)
+	g := (*GStreamer)(user_data)
 	//
 	//   if (app_state < PEER_CALL_NEGOTIATING) {
 	//   	g_print ("Can't send ICE, not in call", APP_STATE_ERROR);
@@ -106,9 +114,11 @@ func send_ice_candidate_message(webrtc *C.GstElement, mlineindex C.long, candida
 	C.json_object_set_string_member(ice, candidateStr, (*C.gchar)(candidate))
 	C.json_object_set_int_member(ice, sdpMLineIndex, mlineindex)
 	msg := C.json_object_new()
-	iceStr := C.CString("ice")
+	iceStr := C.CString("candidate")
 	defer C.free(unsafe.Pointer(iceStr))
 	C.json_object_set_object_member(msg, iceStr, ice)
-	//text := get_string_from_json_object(msg)
-	//fmt.Println(C.GoString(text))
+	text := get_string_from_json_object(msg)
+	defer C.g_free(C.gpointer(text))
+	//C.g_free(C.gpointer(text))
+	g.sendIceCandidate(C.GoString(text))
 }
