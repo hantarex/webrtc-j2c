@@ -17,14 +17,14 @@ import (
 )
 
 type GStreamer struct {
-	webrtc, pipeline *C.GstElement
-	gError           *C.GError
-	send_channel     *C.GObject
-	bus              *C.GstBus
-	loop             *C.GMainLoop
-	ret              C.GstStateChangeReturn
-	c                *websocket.Conn
-	trans            *C.GstWebRTCRTPTransceiver
+	webrtc, pipeline, rtph264depay, h264parse, avdec_h264, videoconvert, autovideosink *C.GstElement
+	gError                                                                             *C.GError
+	send_channel                                                                       *C.GObject
+	bus                                                                                *C.GstBus
+	loop                                                                               *C.GMainLoop
+	ret                                                                                C.GstStateChangeReturn
+	c                                                                                  *websocket.Conn
+	trans                                                                              *C.GstWebRTCRTPTransceiver
 }
 
 func (g *GStreamer) Close() {
@@ -37,7 +37,6 @@ func (g *GStreamer) Close() {
 	C.gst_object_unref(C.gpointer(g.bus))
 	C.gst_object_unref(C.gpointer(g.send_channel))
 	C.gst_object_unref(C.gpointer(g.pipeline))
-	C.gst_object_unref(C.gpointer(g.webrtc))
 	C.g_main_loop_unref(g.loop)
 }
 
@@ -70,19 +69,51 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink"), &g.gError)
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! autovideosink"), &g.gError)
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay request-keyframe=1 ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv"), &g.gError)
-	g.pipeline = C.gst_parse_launch(pipeStr, &g.gError)
-	if g.gError != nil {
-		fmt.Printf("Failed to parse launch: %s\n", g.gError.message)
-		C.g_error_free(g.gError)
-	}
-	recv := C.CString("recv")
-	defer C.free(unsafe.Pointer(recv))
-	g.webrtc = C.gst_bin_get_by_name(GST_BIN(g.pipeline), recv)
-	g_assert_nonnull(C.gpointer(g.webrtc))
+	pipeName := C.CString("j2c_webrtc")
+	defer C.free(unsafe.Pointer(pipeName))
+	g.pipeline = C.gst_pipeline_new(pipeName)
+	// webrtcbin
+	webrtcName := C.CString("webrtcbin")
+	defer C.free(unsafe.Pointer(webrtcName))
+	g.webrtc = C.gst_element_factory_make(webrtcName, webrtcName)
+	// rtph264depay
+	rtph264depayName := C.CString("rtph264depay")
+	defer C.free(unsafe.Pointer(rtph264depayName))
+	g.rtph264depay = C.gst_element_factory_make(rtph264depayName, rtph264depayName)
+	// h264parse
+	h264parseName := C.CString("h264parse")
+	defer C.free(unsafe.Pointer(h264parseName))
+	g.h264parse = C.gst_element_factory_make(h264parseName, h264parseName)
+	// avdec_h264
+	avdec_h264Name := C.CString("avdec_h264")
+	defer C.free(unsafe.Pointer(avdec_h264Name))
+	g.avdec_h264 = C.gst_element_factory_make(avdec_h264Name, avdec_h264Name)
+	// videoconvert
+	videoconvertName := C.CString("videoconvert")
+	defer C.free(unsafe.Pointer(videoconvertName))
+	g.videoconvert = C.gst_element_factory_make(videoconvertName, videoconvertName)
+	// autovideosink
+	autovideosinkName := C.CString("autovideosink")
+	defer C.free(unsafe.Pointer(autovideosinkName))
+	g.autovideosink = C.gst_element_factory_make(autovideosinkName, autovideosinkName)
+
+	C.gst_bin_add(GST_BIN(g.pipeline), g.webrtc)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.rtph264depay)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.h264parse)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.avdec_h264)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.videoconvert)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.autovideosink)
+
+	C.gst_element_link(g.webrtc, g.rtph264depay)
+	C.gst_element_link(g.rtph264depay, g.h264parse)
+	C.gst_element_link(g.h264parse, g.avdec_h264)
+	C.gst_element_link(g.avdec_h264, g.videoconvert)
+	C.gst_element_link(g.videoconvert, g.autovideosink)
+
+	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
 
 	//g_signal_connect(unsafe.Pointer(g.webrtc), "on-negotiation-needed", C.on_negotiation_needed_wrap, unsafe.Pointer(g))
 	g_signal_connect(unsafe.Pointer(g.webrtc), "on-ice-candidate", C.send_ice_candidate_message_wrap, unsafe.Pointer(g))
-	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
 
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
 
@@ -93,40 +124,16 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	defer C.free(unsafe.Pointer(capsStr))
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
 	//C.gst_caps_set_simple_wrap(caps,  C.CString("extmap"), C.G_TYPE_STRING, unsafe.Pointer(C.CString("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time")))
-	//C.gst_caps_set_simple(caps,
-	//	"flavor", G_TYPE_INT, demux->flavour,
-	//	"rate", G_TYPE_INT, demux->sample_rate,
-	//	"channels", G_TYPE_INT, demux->channels,
-	//	"width", G_TYPE_INT, demux->sample_width,
-	//	"leaf_size", G_TYPE_INT, demux->leaf_size,
-	//	"packet_size", G_TYPE_INT, demux->packet_size,
-	//	"height", G_TYPE_INT, demux->height, NULL);
+
 	g.trans = new(C.GstWebRTCRTPTransceiver)
 	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(&g.trans))
 	C.g_object_set_fec(g.trans)
 
-	//g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
 	if g.send_channel != nil {
 		fmt.Println("Created data channel")
 	} else {
 		fmt.Println("Could not create data channel, is usrsctp available?")
 	}
-
-	//transceivers := new(C.GArray)
-	//g_signal_emit_by_name(g.webrtc, "get-transceivers", unsafe.Pointer(&transceivers), nil, nil)
-	////C.g_assert (transceivers != nil && transceivers->len > 0);
-	//
-	//fmt.Println(transceivers.len)
-	//
-	//for i := 0; i < int(transceivers.len); i++ {
-	//	//trans := C.g_array_index_wrap(transceivers, *C.GstWebRTCRTPTransceiver, i)
-	//	//trans := (*interface{})(transceivers.data)
-	//	trans := C.g_array_index_wrap(transceivers, C.int(i))
-	//	fmt.Println(trans)
-	//	//C.g_object_set(trans, "fec-type", C.GST_WEBRTC_FEC_TYPE_ULP_RED, "fec-percentage", 50, "do-nack", false, nil)
-	//	C.g_object_set_fec(trans)
-	//}
-	//C.g_array_unref(transceivers)
 
 	g.loop = C.g_main_loop_new(nil, 0)
 	g.ret = C.gst_element_set_state(g.pipeline, C.GST_STATE_PLAYING)
