@@ -1,7 +1,7 @@
 package gstreamer
 
 /*
-#cgo pkg-config: gstreamer-plugins-bad-1.0 gstreamer-rtp-1.0 gstreamer-plugins-good-1.0 gstreamer-webrtc-1.0 gstreamer-plugins-base-1.0 glib-2.0 libsoup-2.4 json-glib-1.0
+#cgo pkg-config: gstreamer-plugins-bad-1.0 gstreamer-rtp-1.0 gstreamer-webrtc-1.0 gstreamer-plugins-base-1.0 glib-2.0 libsoup-2.4 json-glib-1.0
 #cgo CFLAGS: -Wall
 #cgo CFLAGS: -Wno-deprecated-declarations -Wimplicit-function-declaration -Wformat-security
 #cgo LDFLAGS: -lgstsdp-1.0
@@ -25,6 +25,7 @@ type GStreamer struct {
 	ret                                                                                                               C.GstStateChangeReturn
 	c                                                                                                                 *websocket.Conn
 	trans                                                                                                             *C.GstWebRTCRTPTransceiver
+	RtmpAddress                                                                                                       string
 }
 
 func (g *GStreamer) Close() {
@@ -64,9 +65,9 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_debug_set_default_threshold(C.GST_LEVEL_WARNING)
 	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle ice-tcp=false name=recv recv. ! rtph264depay ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink")
 	//pipeStr := C.CString("webrtcbin stun-server=stun://stun.l.google.com:19302 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! video/x-h264,stream-format=(string)avc ! queue2 ! avdec_h264 ! queue2 ! videoconvert ! queue ! autovideosink")
-	pipeStr := C.CString("webrtcbin stun-server=stun://stun.l.google.com:19302 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! flvmux ! rtmp2sink sync=false location=rtmp://localhost:1935/hls_dash/${name}_mid")
+	//pipeStr := C.CString("webrtcbin stun-server=stun://stun.l.google.com:19302 name=recv recv. ! queue2 max-size-buffers=0 max-size-time=0 max-size-bytes=0 ! rtph264depay ! queue2 ! h264parse ! flvmux ! rtmp2sink sync=false location=rtmp://localhost:1935/hls_dash/${name}_mid")
 	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv")
-	defer C.free(unsafe.Pointer(pipeStr))
+	//defer C.free(unsafe.Pointer(pipeStr))
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtpvp8depay ! vp8dec ! videoconvert ! queue ! autovideosink"), &g.gError)
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay ! avdec_h264 ! queue ! autovideosink"), &g.gError)
 	//g.pipeline = C.gst_parse_launch(C.CString("webrtcbin bundle-policy=max-bundle stun-server=stun://stun.l.google.com:19302 name=recv recv. ! rtph264depay request-keyframe=1 ! avdec_h264 ! queue ! x264enc ! flvmux ! filesink location=xyz.flv"), &g.gError)
@@ -107,7 +108,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_bin_add(GST_BIN(g.pipeline), g.flvmux)
 	g_object_set_bool(C.gpointer(g.flvmux), "streamable", true)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtmp2sink)
-	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString("rtmp://127.0.0.1:1937/test/test")))
+	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(g.RtmpAddress)))
 	g_object_set_bool(C.gpointer(g.rtmp2sink), "sync", false)
 
 	C.gst_element_link(g.webrtc, g.rtph264depay)
