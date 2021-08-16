@@ -1,11 +1,11 @@
 version: '2.3'
 services:
 
-  gtsremer-dev:
+  webrtc-gtsremer-dev:
     build:
       context: docker
       dockerfile: Dockerfile
-    container_name: gtsremer-dev
+    container_name: webrtc-gtsremer-dev
     working_dir: /application
     #    command: bash -c "cd /application/data && mkdir -p {history,hls,logs,record,thumbs} && chmod a+rwx history hls logs record thumbs && /opt/nginx/sbin/nginx"
     #    command: bash -c "tail -f /dev/null"

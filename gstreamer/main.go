@@ -17,15 +17,17 @@ import (
 )
 
 type GStreamer struct {
-	webrtc, pipeline, rtph264depay, h264parse, avdec_h264, videoconvert, autovideosink, flvmux, rtmp2sink, capsfilter *C.GstElement
-	gError                                                                                                            *C.GError
-	send_channel                                                                                                      *C.GObject
-	bus                                                                                                               *C.GstBus
-	loop                                                                                                              *C.GMainLoop
-	ret                                                                                                               C.GstStateChangeReturn
-	c                                                                                                                 *websocket.Conn
-	trans                                                                                                             *C.GstWebRTCRTPTransceiver
-	RtmpAddress                                                                                                       string
+	webrtc, pipeline, rtph264depay, h264parse, avdec_h264, videoconvert, autovideosink, flvmux, rtmp2sink, capsfilter,
+	rtpopusdepay, opusdec, audioconvert, avenc_aac *C.GstElement
+	gError       *C.GError
+	send_channel *C.GObject
+	bus          *C.GstBus
+	loop         *C.GMainLoop
+	ret          C.GstStateChangeReturn
+	c            *websocket.Conn
+	trans        *C.GstWebRTCRTPTransceiver
+	RtmpAddress  string
+	Iter         int
 }
 
 func (g *GStreamer) Close() {
@@ -82,10 +84,26 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	rtph264depayName := C.CString("rtph264depay")
 	defer C.free(unsafe.Pointer(rtph264depayName))
 	g.rtph264depay = C.gst_element_factory_make(rtph264depayName, rtph264depayName)
+	// rtpopusdepay
+	rtpopusdepayName := C.CString("rtpopusdepay")
+	defer C.free(unsafe.Pointer(rtpopusdepayName))
+	g.rtpopusdepay = C.gst_element_factory_make(rtpopusdepayName, rtpopusdepayName)
 	// h264parse
 	h264parseName := C.CString("h264parse")
 	defer C.free(unsafe.Pointer(h264parseName))
 	g.h264parse = C.gst_element_factory_make(h264parseName, h264parseName)
+	// opusdec
+	opusdecName := C.CString("opusdec")
+	defer C.free(unsafe.Pointer(opusdecName))
+	g.opusdec = C.gst_element_factory_make(opusdecName, opusdecName)
+	// audioconvert
+	audioconvertName := C.CString("audioconvert")
+	defer C.free(unsafe.Pointer(audioconvertName))
+	g.audioconvert = C.gst_element_factory_make(audioconvertName, audioconvertName)
+	// avenc_aac
+	avenc_aacName := C.CString("avenc_aac")
+	defer C.free(unsafe.Pointer(avenc_aacName))
+	g.avenc_aac = C.gst_element_factory_make(avenc_aacName, avenc_aacName)
 	// capsfilter
 	capsfilterName := C.CString("capsfilter")
 	defer C.free(unsafe.Pointer(capsfilterName))
@@ -111,14 +129,26 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(g.RtmpAddress)))
 	g_object_set_bool(C.gpointer(g.rtmp2sink), "sync", false)
 
-	C.gst_element_link(g.webrtc, g.rtph264depay)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.rtpopusdepay)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.opusdec)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.audioconvert)
+	C.gst_bin_add(GST_BIN(g.pipeline), g.avenc_aac)
+
 	C.gst_element_link(g.rtph264depay, g.h264parse)
 	C.gst_element_link(g.h264parse, g.capsfilter)
 	C.gst_element_link(g.flvmux, g.rtmp2sink)
 
+	C.gst_element_link(g.rtpopusdepay, g.opusdec)
+	C.gst_element_link(g.opusdec, g.audioconvert)
+	C.gst_element_link(g.audioconvert, g.avenc_aac)
+
 	video_pad := C.gst_element_get_static_pad(g.capsfilter, C.CString("src"))
+	audio_pad := C.gst_element_get_static_pad(g.avenc_aac, C.CString("src"))
 	target_pad_video := C.gst_element_get_request_pad(g.flvmux, C.CString("video"))
+	target_pad_audio := C.gst_element_get_request_pad(g.flvmux, C.CString("audio"))
+
 	C.gst_pad_link(video_pad, target_pad_video)
+	C.gst_pad_link(audio_pad, target_pad_audio)
 
 	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
 
@@ -135,9 +165,9 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	var caps *C.GstCaps = C.gst_caps_from_string(capsStr)
 	//C.gst_caps_set_simple_wrap(caps,  C.CString("extmap"), C.G_TYPE_STRING, unsafe.Pointer(C.CString("http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time")))
 
-	g.trans = new(C.GstWebRTCRTPTransceiver)
-	g_signal_emit_by_name_recv(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps), unsafe.Pointer(&g.trans))
-	C.g_object_set_fec(g.trans)
+	//g.trans = new(C.GstWebRTCRTPTransceiver)
+	g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
+	//C.g_object_set_fec(g.trans)
 
 	if g.send_channel != nil {
 		fmt.Println("Created data channel")

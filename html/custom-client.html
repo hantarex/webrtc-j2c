@@ -74,7 +74,7 @@
 
 		socket.onopen = async () => {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
+                audio: true,
                 video: {width: {exact: 2560}, height: {exact: 1440}}
             });
             console.debug("md::getUserMedia sucess",stream);

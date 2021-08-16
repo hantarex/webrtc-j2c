@@ -41,6 +41,7 @@ void g_signal_emit_by_name_recv_wrap(GstElement *instance,char* signal,int one,v
 void g_signal_emit_by_name_trans(GstElement *instance,char* signal,int one,void* two) {
 	GstWebRTCRTPTransceiver *trans = NULL;
 	g_signal_emit_by_name(instance, signal, one, two, &trans);
+	g_object_set(trans, "fec-type", GST_WEBRTC_FEC_TYPE_ULP_RED, "do-nack", TRUE, NULL);
 	if( trans != NULL ) {
 		gst_object_unref (trans);
 	}

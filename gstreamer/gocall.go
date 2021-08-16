@@ -84,9 +84,42 @@ func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, user_data unsafe.Po
 	g := (*GStreamer)(user_data)
 	sinkName := C.CString("sink")
 	defer C.free(unsafe.Pointer(sinkName))
-	sinkpad := C.gst_element_get_static_pad(g.rtph264depay, sinkName)
-	C.gst_pad_link(pad, sinkpad)
-	C.gst_object_unref(C.gpointer(sinkpad))
+	new_pad_caps := C.gst_pad_get_current_caps(pad)
+	new_pad_struct := C.gst_caps_get_structure(new_pad_caps, 0)
+	media := C.CString("media")
+	defer C.free(unsafe.Pointer(media))
+	typePad := C.GoString(C.gst_structure_get_string(new_pad_struct, media))
+	//fmt.Println(C.GoString(C.gst_structure_serialize(new_pad_struct, C.GST_SERIALIZE_FLAG_NONE)))
+	//fmt.Println(C.GoString(C.gst_structure_get_string(new_pad_struct, C.CString("media"))))
+	if typePad == "video" {
+		fmt.Println("receive pad " + typePad)
+		sinkpad := C.gst_element_get_static_pad(g.rtph264depay, sinkName)
+		defer C.gst_object_unref(C.gpointer(sinkpad))
+		if C.gst_pad_is_linked(sinkpad) == 1 {
+			fmt.Println("We are already linked. Ignoring.\n")
+			return
+		}
+		C.gst_pad_link(pad, sinkpad)
+	}
+
+	if typePad == "audio" {
+		fmt.Println("receive pad " + typePad)
+		sinkpad := C.gst_element_get_static_pad(g.rtpopusdepay, sinkName)
+		defer C.gst_object_unref(C.gpointer(sinkpad))
+		if C.gst_pad_is_linked(sinkpad) == 1 {
+			fmt.Println("We are already linked. Ignoring.\n")
+			return
+		}
+		C.gst_pad_link(pad, sinkpad)
+		//g_print ("It has type '%s' is raw audio.\n", new_pad_type);
+		//sink_pad = gst_element_get_static_pad (targetPad->elementToAudio, "sink");
+		//if (gst_pad_is_linked (sink_pad)) {
+		//	g_print ("We are already linked. Ignoring.\n");
+		//	goto exit;
+		//}
+		//ret = gst_pad_link (new_pad, sink_pad);
+	}
+
 	//if C.GST_PAD_DIRECTION(pad) != C.GST_PAD_SRC {
 	//	fmt.Println("Pad is not source")
 	//}

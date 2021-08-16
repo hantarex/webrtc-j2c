@@ -12,7 +12,8 @@ var useAddr, useRTMP string
 var addrDockerWS = os.Getenv("WS_PORT")
 var addrDockerRTMP = os.Getenv("RTMP_DST")
 var addr = "8082"
-var rtmp = "rtmp://127.0.0.1:1939/live/test"
+var rtmp = "rtmp://127.0.0.1:1945/live_hard/c22839d94fee8e79f9831de63916bbf2372b378168af9a31e45d5cd8edf23a56"
+var Iter = 1
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -28,7 +29,9 @@ func ws(w http.ResponseWriter, r *http.Request) {
 	}
 	gst := gstreamer.GStreamer{
 		RtmpAddress: useRTMP,
+		Iter:        Iter,
 	}
+	//Iter++
 	gst.InitGst(c)
 }
 
