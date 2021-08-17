@@ -80,7 +80,6 @@ func bus_call(bus *C.GstBus, msg *C.GstMessage, data unsafe.Pointer) C.gboolean 
 
 //export on_incoming_stream
 func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, user_data unsafe.Pointer) {
-	fmt.Println("on_incoming_stream")
 	g := (*GStreamer)(user_data)
 	sinkName := C.CString("sink")
 	defer C.free(unsafe.Pointer(sinkName))
@@ -104,6 +103,7 @@ func on_incoming_stream(webrtc *C.GstElement, pad *C.GstPad, user_data unsafe.Po
 
 	if typePad == "audio" {
 		fmt.Println("receive pad " + typePad)
+		g.initAudio()
 		sinkpad := C.gst_element_get_static_pad(g.rtpopusdepay, sinkName)
 		defer C.gst_object_unref(C.gpointer(sinkpad))
 		if C.gst_pad_is_linked(sinkpad) == 1 {

@@ -138,17 +138,17 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_element_link(g.h264parse, g.capsfilter)
 	C.gst_element_link(g.flvmux, g.rtmp2sink)
 
-	C.gst_element_link(g.rtpopusdepay, g.opusdec)
-	C.gst_element_link(g.opusdec, g.audioconvert)
-	C.gst_element_link(g.audioconvert, g.avenc_aac)
+	//C.gst_element_link(g.rtpopusdepay, g.opusdec)
+	//C.gst_element_link(g.opusdec, g.audioconvert)
+	//C.gst_element_link(g.audioconvert, g.avenc_aac)
 
 	video_pad := C.gst_element_get_static_pad(g.capsfilter, C.CString("src"))
-	audio_pad := C.gst_element_get_static_pad(g.avenc_aac, C.CString("src"))
+	//audio_pad := C.gst_element_get_static_pad(g.avenc_aac, C.CString("src"))
 	target_pad_video := C.gst_element_get_request_pad(g.flvmux, C.CString("video"))
-	target_pad_audio := C.gst_element_get_request_pad(g.flvmux, C.CString("audio"))
+	//target_pad_audio := C.gst_element_get_request_pad(g.flvmux, C.CString("audio"))
 
 	C.gst_pad_link(video_pad, target_pad_video)
-	C.gst_pad_link(audio_pad, target_pad_audio)
+	//C.gst_pad_link(audio_pad, target_pad_audio)
 
 	g_signal_connect(unsafe.Pointer(g.webrtc), "pad-added", C.on_incoming_stream_wrap, unsafe.Pointer(g))
 
@@ -292,4 +292,13 @@ func (g *GStreamer) iceCandidateReceived(msg Message) {
 	canStr := C.CString(msg.Candidate.Candidate)
 	defer C.free(unsafe.Pointer(canStr))
 	g_signal_emit_by_name_recv(g.webrtc, "add-ice-candidate", msg.Candidate.SdpMLineIndex, unsafe.Pointer(C.gchararray(canStr)), nil)
+}
+
+func (g *GStreamer) initAudio() {
+	C.gst_element_link(g.rtpopusdepay, g.opusdec)
+	C.gst_element_link(g.opusdec, g.audioconvert)
+	C.gst_element_link(g.audioconvert, g.avenc_aac)
+	audio_pad := C.gst_element_get_static_pad(g.avenc_aac, C.CString("src"))
+	target_pad_audio := C.gst_element_get_request_pad(g.flvmux, C.CString("audio"))
+	C.gst_pad_link(audio_pad, target_pad_audio)
 }
