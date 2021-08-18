@@ -10,6 +10,7 @@ package gstreamer
 import "C"
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
@@ -22,25 +23,26 @@ type GStreamer struct {
 	gError       *C.GError
 	send_channel *C.GObject
 	bus          *C.GstBus
-	loop         *C.GMainLoop
-	ret          C.GstStateChangeReturn
-	c            *websocket.Conn
-	trans        *C.GstWebRTCRTPTransceiver
-	RtmpAddress  string
-	Iter         int
+	//loop         *C.GMainLoop
+	ret         C.GstStateChangeReturn
+	c           *websocket.Conn
+	trans       *C.GstWebRTCRTPTransceiver
+	RtmpAddress string
+	Iter        int
 }
 
 func (g *GStreamer) Close() {
 	g.c.Close()
+	log.Println("Connection closed: ", g.c.RemoteAddr().String(), " ", g.c.RemoteAddr().Network())
 	C.gst_element_set_state(g.pipeline, C.GST_STATE_NULL)
-	C.g_main_loop_quit(g.loop)
+	//C.g_main_loop_quit(g.loop)
 	if g.trans != nil {
 		C.gst_object_unref(C.gpointer(g.trans))
 	}
 	C.gst_object_unref(C.gpointer(g.bus))
 	C.gst_object_unref(C.gpointer(g.send_channel))
 	C.gst_object_unref(C.gpointer(g.pipeline))
-	C.g_main_loop_unref(g.loop)
+	//C.g_main_loop_unref(g.loop)
 }
 
 type IceCandidate struct {
@@ -57,12 +59,13 @@ type Message struct {
 	Key       string       `json:"key,omitempty"`
 }
 
-func (g *GStreamer) InitGst(c *websocket.Conn) {
-	log.Println("Connected: ", c.RemoteAddr().String(), " ", c.RemoteAddr().Network())
-	defer func() {
-		log.Println("Connection closed: ", c.RemoteAddr().String(), " ", c.RemoteAddr().Network())
-	}()
+func (g *GStreamer) InitConnection(c *websocket.Conn) {
 	g.c = c
+	log.Println("Connected: ", g.c.RemoteAddr().String(), " ", g.c.RemoteAddr().Network())
+	go g.readMessages()
+}
+
+func (g *GStreamer) InitGst() {
 	C.gst_init(nil, nil)
 	C.gst_debug_set_default_threshold(C.GST_LEVEL_WARNING)
 	//pipeStr := C.CString("webrtcbin bundle-policy=max-bundle ice-tcp=false name=recv recv. ! rtph264depay ! queue ! avdec_h264 ! videoconvert ! queue ! autovideosink")
@@ -126,7 +129,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	C.gst_bin_add(GST_BIN(g.pipeline), g.flvmux)
 	g_object_set_bool(C.gpointer(g.flvmux), "streamable", true)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtmp2sink)
-	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(g.RtmpAddress)))
+	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(fmt.Sprintf("rtmp://127.0.0.1:1945/live/%s", g.RtmpAddress))))
 	g_object_set_bool(C.gpointer(g.rtmp2sink), "sync", false)
 
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtpopusdepay)
@@ -175,7 +178,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 		fmt.Println("Could not create data channel, is usrsctp available?")
 	}
 
-	g.loop = C.g_main_loop_new(nil, 0)
+	//g.loop = C.g_main_loop_new(nil, 0)
 	g.ret = C.gst_element_set_state(g.pipeline, C.GST_STATE_PLAYING)
 
 	if g.ret == C.GST_STATE_CHANGE_FAILURE {
@@ -184,9 +187,7 @@ func (g *GStreamer) InitGst(c *websocket.Conn) {
 	g.bus = gst_pipeline_get_bus(unsafe.Pointer(g.pipeline))
 	C.gst_bus_add_signal_watch(g.bus)
 	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call_wrap, unsafe.Pointer(g))
-	go g.readMessages()
-	C.g_main_loop_run(g.loop)
-	fmt.Println("Close session!")
+	//C.g_main_loop_run(g.loop)
 }
 
 func (g GStreamer) sendSpdToPeer(desc *C.GstWebRTCSessionDescription) {
@@ -259,7 +260,9 @@ func (g *GStreamer) readMessages() {
 		}
 		switch msg.Id {
 		case "start":
-			g.on_offer_received(msg)
+			if err := g.on_offer_received(msg); err != nil {
+				log.Println(err.Error())
+			}
 		case "onIceCandidate":
 			g.iceCandidateReceived(msg)
 		default:
@@ -268,7 +271,12 @@ func (g *GStreamer) readMessages() {
 	}
 }
 
-func (g *GStreamer) on_offer_received(msg Message) {
+func (g *GStreamer) on_offer_received(msg Message) (err error) {
+	if msg.Key == "" {
+		err = errors.New("key of stream does not exists")
+	}
+	g.setRTMPAddress(msg.Key)
+	g.InitGst()
 	var sdp *C.GstSDPMessage
 	C.gst_sdp_message_new(&sdp)
 	spdStr := C.CString(msg.SdpOffer)
@@ -281,6 +289,7 @@ func (g *GStreamer) on_offer_received(msg Message) {
 	offer = C.gst_webrtc_session_description_new(C.GST_WEBRTC_SDP_TYPE_OFFER, sdp)
 	promise = C.gst_promise_new_with_change_func(C.GCallback(C.on_offer_set_wrap), C.gpointer(g), nil)
 	g_signal_emit_by_name_offer_remote(g.webrtc, "set-remote-description", offer, promise)
+	return
 }
 
 func (g *GStreamer) iceCandidateReceived(msg Message) {
@@ -301,4 +310,8 @@ func (g *GStreamer) initAudio() {
 	audio_pad := C.gst_element_get_static_pad(g.avenc_aac, C.CString("src"))
 	target_pad_audio := C.gst_element_get_request_pad(g.flvmux, C.CString("audio"))
 	C.gst_pad_link(audio_pad, target_pad_audio)
+}
+
+func (g *GStreamer) setRTMPAddress(key string) {
+	g.RtmpAddress = key
 }

@@ -74,7 +74,7 @@
 
 		socket.onopen = async () => {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
+                audio: false,
                 video: {width: {exact: 2560}, height: {exact: 1440}}
             });
             console.debug("md::getUserMedia sucess",stream);
@@ -93,7 +93,8 @@
             console.log("offer ==== ",offer.sdp);
             socket.send(JSON.stringify({
                 id: 'start',
-				sdpOffer: offer.sdp
+				sdpOffer: offer.sdp,
+				key: 'c22839d94fee8e79f9831de63916bbf2372b378168af9a31e45d5cd8edf23a56'
             }));
         };
 
