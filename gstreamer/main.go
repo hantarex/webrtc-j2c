@@ -20,14 +20,15 @@ import (
 type GStreamer struct {
 	webrtc, pipeline, rtph264depay, h264parse, avdec_h264, videoconvert, autovideosink, flvmux, rtmp2sink, capsfilter,
 	rtpopusdepay, opusdec, audioconvert, avenc_aac *C.GstElement
-	gError       *C.GError
-	send_channel *C.GObject
-	bus          *C.GstBus
+	gError *C.GError
+	//send_channel *C.GObject
+	bus *C.GstBus
 	//loop         *C.GMainLoop
 	ret         C.GstStateChangeReturn
 	c           *websocket.Conn
 	trans       *C.GstWebRTCRTPTransceiver
 	RtmpAddress string
+	RtmpKey     string
 	Iter        int
 }
 
@@ -40,7 +41,7 @@ func (g *GStreamer) Close() {
 		C.gst_object_unref(C.gpointer(g.trans))
 	}
 	C.gst_object_unref(C.gpointer(g.bus))
-	C.gst_object_unref(C.gpointer(g.send_channel))
+	//C.gst_object_unref(C.gpointer(g.send_channel))
 	C.gst_object_unref(C.gpointer(g.pipeline))
 	//C.g_main_loop_unref(g.loop)
 }
@@ -62,6 +63,7 @@ type Message struct {
 func (g *GStreamer) InitConnection(c *websocket.Conn) {
 	g.c = c
 	log.Println("Connected: ", g.c.RemoteAddr().String(), " ", g.c.RemoteAddr().Network())
+	g.InitGst()
 	go g.readMessages()
 }
 
@@ -129,7 +131,7 @@ func (g *GStreamer) InitGst() {
 	C.gst_bin_add(GST_BIN(g.pipeline), g.flvmux)
 	g_object_set_bool(C.gpointer(g.flvmux), "streamable", true)
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtmp2sink)
-	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(fmt.Sprintf("rtmp://127.0.0.1:1945/live/%s", g.RtmpAddress))))
+	//g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(fmt.Sprintf("rtmp://127.0.0.1:1945/live/%s", g.RtmpAddress))))
 	g_object_set_bool(C.gpointer(g.rtmp2sink), "sync", false)
 
 	C.gst_bin_add(GST_BIN(g.pipeline), g.rtpopusdepay)
@@ -158,9 +160,9 @@ func (g *GStreamer) InitGst() {
 	//g_signal_connect(unsafe.Pointer(g.webrtc), "on-negotiation-needed", C.on_negotiation_needed_wrap, unsafe.Pointer(g))
 	g_signal_connect(unsafe.Pointer(g.webrtc), "on-ice-candidate", C.send_ice_candidate_message_wrap, unsafe.Pointer(g))
 
-	C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
+	//C.gst_element_set_state(g.pipeline, C.GST_STATE_READY)
 
-	g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&g.send_channel))
+	//g_signal_emit_by_name(g.webrtc, "create-data-channel", unsafe.Pointer(C.CString("channel")), nil, unsafe.Pointer(&g.send_channel))
 	//g_signal_emit_by_name(g.webrtc, "add-local-ip-address", unsafe.Pointer(C.CString("127.0.0.1")), nil, nil)
 
 	capsStr := C.CString("application/x-rtp,media=video,encoding-name=H264,clock-rate=90000")
@@ -172,18 +174,14 @@ func (g *GStreamer) InitGst() {
 	g_signal_emit_by_name_trans(g.webrtc, "add-transceiver", C.GST_WEBRTC_RTP_TRANSCEIVER_DIRECTION_RECVONLY, unsafe.Pointer(caps))
 	//C.g_object_set_fec(g.trans)
 
-	if g.send_channel != nil {
-		fmt.Println("Created data channel")
-	} else {
-		fmt.Println("Could not create data channel, is usrsctp available?")
-	}
+	//if g.send_channel != nil {
+	//	fmt.Println("Created data channel")
+	//} else {
+	//	fmt.Println("Could not create data channel, is usrsctp available?")
+	//}
 
 	//g.loop = C.g_main_loop_new(nil, 0)
-	g.ret = C.gst_element_set_state(g.pipeline, C.GST_STATE_PLAYING)
 
-	if g.ret == C.GST_STATE_CHANGE_FAILURE {
-		fmt.Println("Unable to set the pipeline to the playing state (check the bus for error messages).")
-	}
 	g.bus = gst_pipeline_get_bus(unsafe.Pointer(g.pipeline))
 	C.gst_bus_add_signal_watch(g.bus)
 	g_signal_connect(unsafe.Pointer(g.bus), "message", C.bus_call_wrap, unsafe.Pointer(g))
@@ -275,8 +273,8 @@ func (g *GStreamer) on_offer_received(msg Message) (err error) {
 	if msg.Key == "" {
 		err = errors.New("key of stream does not exists")
 	}
-	g.setRTMPAddress(msg.Key)
-	g.InitGst()
+	g.setRTMPKey(msg.Key)
+
 	var sdp *C.GstSDPMessage
 	C.gst_sdp_message_new(&sdp)
 	spdStr := C.CString(msg.SdpOffer)
@@ -312,6 +310,11 @@ func (g *GStreamer) initAudio() {
 	C.gst_pad_link(audio_pad, target_pad_audio)
 }
 
-func (g *GStreamer) setRTMPAddress(key string) {
-	g.RtmpAddress = key
+func (g *GStreamer) setRTMPKey(key string) {
+	g.RtmpKey = key
+	g_object_set(C.gpointer(g.rtmp2sink), "location", unsafe.Pointer(C.CString(fmt.Sprintf("rtmp://127.0.0.1:1945/live/%s", g.RtmpKey))))
+	g.ret = C.gst_element_set_state(g.pipeline, C.GST_STATE_PLAYING)
+	if g.ret == C.GST_STATE_CHANGE_FAILURE {
+		fmt.Println("Unable to set the pipeline to the playing state (check the bus for error messages).")
+	}
 }
